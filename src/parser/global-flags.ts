@@ -4,6 +4,7 @@ import type { ArgSchema, ParsedArgs } from "./types.ts";
 export const globalSchema: ArgSchema = {
   flags: {
     help:       { type: "boolean", alias: "h", description: "Show help" },
+    version:    { type: "boolean",              description: "Show version" },
     json:       { type: "boolean",              description: "Output as JSON" },
     "no-color": { type: "boolean",              description: "Disable ANSI color and formatting" },
     quiet:      { type: "boolean", alias: "q",  description: "Suppress all output except errors" },
@@ -15,6 +16,7 @@ export const globalSchema: ArgSchema = {
 
 export interface GlobalFlags {
   help: boolean;
+  version: boolean;
   json: boolean;
   noColor: boolean;
   quiet: boolean;
@@ -44,6 +46,7 @@ export function extractGlobalFlags(parsed: ParsedArgs): GlobalFlags {
   const debug = Boolean(f["debug"]);
   return {
     help:    Boolean(f["help"]),
+    version: Boolean(f["version"]),
     json:    Boolean(f["json"]),
     noColor: Boolean(f["no-color"]),
     quiet:   Boolean(f["quiet"]),

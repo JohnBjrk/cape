@@ -82,6 +82,14 @@ export interface CliConfig extends CliInfo {
 export function createCli(config: CliConfig, commands: CommandDef[] = []) {
   return {
     async run(argv: string[] = process.argv.slice(2)): Promise<void> {
+      // Fast-path: --version never needs plugin discovery or parsing
+      if (argv.some(a => a === "--version")) {
+        if (config.version) {
+          print(`${config.name} ${config.version}`);
+        }
+        return;
+      }
+
       const userCommands = await resolveCommands(config, commands);
       const builtins = buildBuiltins(config);
       // User-defined commands (static + plugins) take priority over built-ins
@@ -435,8 +443,15 @@ function schemaAwareFreeValue(
 
       const canonical = arg.startsWith("--") ? arg.slice(2) : aliasMap.get(arg);
       const def = canonical !== undefined ? flags[canonical] : undefined;
-      // If the flag takes a value, skip flag + next token; otherwise just skip flag
-      i += def && def.type !== "boolean" ? 2 : 1;
+      if (def) {
+        // Known flag: skip 1 for boolean, 2 for value-consuming flags
+        i += def.type !== "boolean" ? 2 : 1;
+      } else {
+        // Unknown flag: if the next token looks like a value (not a flag), consume it too.
+        // This prevents typos like `--nane Alice` from misidentifying "Alice" as a command.
+        const next = argv[i + 1];
+        i += (next && !next.startsWith("-") && next !== "--") ? 2 : 1;
+      }
       continue;
     }
 

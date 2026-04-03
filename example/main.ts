@@ -1,7 +1,8 @@
 import { createCli, defineCommand, defineSubcommand } from "../src/cli.ts";
+import config from "./cli.config.ts";
 
 const cli = createCli(
-  { name: "greet", version: "0.1.0", description: "A greeting CLI built on Cape" },
+  config,
   [
     defineCommand({
       name: "hello",

@@ -26,10 +26,14 @@ export async function runPromptLoop(
   process.stdin.resume();
 
   const { next, cleanup } = makeKeyReader();
-  let linesRendered = 0;
+  // -1 = not yet rendered; skip clearAbove on the first draw so we don't
+  // erase the current terminal line before writing anything.
+  let linesRendered = -1;
 
   const redraw = () => {
-    process.stdout.write(clearAbove(linesRendered));
+    if (linesRendered >= 0) {
+      process.stdout.write(clearAbove(linesRendered));
+    }
     const output = render();
     process.stdout.write(output);
     linesRendered = countLines(output);
@@ -60,7 +64,7 @@ export async function runPromptLoop(
     }
   } finally {
     cleanup();
-    process.stdout.write(clearAbove(linesRendered));
+    if (linesRendered >= 0) process.stdout.write(clearAbove(linesRendered));
     process.stdout.write(cursor.show);
     process.stdin.setRawMode(false);
     process.stdin.pause();

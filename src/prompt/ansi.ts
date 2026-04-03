@@ -27,10 +27,17 @@ export const style = {
   reset:  `${E}0m`,
 };
 
-/** Moves up `lines` and erases to end of screen — the standard "clear and redraw" pattern. */
+/**
+ * Returns the escape sequence to clear a previously-rendered prompt so it can
+ * be redrawn. Always includes `\r` to return to column 1 of the first line.
+ *
+ * @param lines  Number of lines BELOW the first rendered line (i.e. countLines()
+ *               of the previous render output). 0 means single-line prompt.
+ */
 export function clearAbove(lines: number): string {
-  if (lines <= 0) return "";
-  return cursor.up(lines) + erase.down;
+  // Move up `lines` rows (if any), return to column 1, erase to end of screen.
+  const moveUp = lines > 0 ? cursor.up(lines) : "";
+  return moveUp + "\r" + erase.down;
 }
 
 /** Counts the number of rendered lines in a string (newline count). */

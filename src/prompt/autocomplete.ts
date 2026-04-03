@@ -175,10 +175,10 @@ export async function autocomplete(opts: AutocompletePromptOptions): Promise<str
     cancelled: false,
   };
 
-  let linesRendered = 0;
+  let linesRendered = -1;
 
   const redraw = () => {
-    process.stdout.write(clearAbove(linesRendered));
+    if (linesRendered >= 0) process.stdout.write(clearAbove(linesRendered));
     const output = renderAutocomplete(state, opts);
     // Position cursor on the input line
     const inputCol = `? ${opts.message} `.length + state.queryCursor + 1;
@@ -252,7 +252,7 @@ export async function autocomplete(opts: AutocompletePromptOptions): Promise<str
     clearTimeout(fetchTimer);
     fetchController?.abort();
     cleanup();
-    process.stdout.write(clearAbove(linesRendered));
+    if (linesRendered >= 0) process.stdout.write(clearAbove(linesRendered));
     process.stdout.write(cursor.show);
     process.stdin.setRawMode(false);
     process.stdin.pause();
