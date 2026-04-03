@@ -4,58 +4,41 @@ Ordered for fastest path to a runnable system. Each phase ends with a playable c
 
 Progress: `[ ]` not started · `[x]` done · `[-]` in progress
 
+**Revised execution order:** Phase 1 → Phase 2 → Phase 4 (Completions) → Phase 5 (Interactive Prompt) → Phase 7 subset (defineConfig + binary) → Phase 3 (Full Runtime) → Phase 6 (Built-ins) → Phase 7 rest → Phase 8
+
 ---
 
-## Phase 1 — Arg Parser + Bare Runtime
+## Phase 1 — Arg Parser + Bare Runtime ✓
 
 **Goal:** write a command by hand, run it, see help text. No plugin discovery yet — just wire one command directly.
 
-- [ ] Arg parser: token stream (`flag | value | separator`)
-- [ ] Arg parser: resolve tokens against `ArgSchema` (flags, positionals, `--` passthrough)
-- [ ] Arg parser: flag clustering (`-abc` → `-a -b -c`), `--flag=value` and `--flag value` forms
-- [ ] Arg parser: `required`, `multiple`, `default` on flags
-- [ ] Validation errors: unknown flag, wrong type, missing required, did-you-mean for typos (exit code 2)
-- [ ] `Runtime` interface + `MockRuntime` (args, env, print, printError, exit — bare minimum)
-- [ ] Global flags: `--help/-h`, `--json`, `--no-color`, `--quiet/-q`, `--verbose/-v`, `--debug`
-- [ ] Help text renderer: top-level, command, and subcommand levels from schema
-- [ ] Wire one hardcoded command end-to-end: manifest → arg parse → run
+- [x] Arg parser: token stream (`flag | value | separator`)
+- [x] Arg parser: resolve tokens against `ArgSchema` (flags, positionals, `--` passthrough)
+- [x] Arg parser: flag clustering (`-abc` → `-a -b -c`), `--flag=value` and `--flag value` forms
+- [x] Arg parser: `required`, `multiple`, `default` on flags
+- [x] Validation errors: unknown flag, wrong type, missing required, did-you-mean for typos (exit code 2)
+- [x] `Runtime` interface + `MockRuntime` (args, env, print, printError, exit — bare minimum)
+- [x] Global flags: `--help/-h`, `--json`, `--no-color`, `--quiet/-q`, `--verbose/-v`, `--debug`
+- [x] Help text renderer: top-level, command, and subcommand levels from schema
+- [x] Wire one hardcoded command end-to-end: manifest → arg parse → run
 
 **Checkpoint:** write a `hello` command with a `--name` flag. Run it, get help with `--help`, see a validation error with `--unknown-flag`. Confirm the design feels right before building the loader.
 
 ---
 
-## Phase 2 — Plugin Loader + Subcommand Routing
+## Phase 2 — Plugin Loader + Subcommand Routing ✓
 
 **Goal:** commands are discovered automatically from the filesystem — no hardcoding.
 
-- [ ] `*.plugin.toml` minimal manifest format (`name`, `description`, `command`, `enabled`, `frameworkVersion`)
-- [ ] Plugin discovery: recursive scan of configured directories
-- [ ] Plugin directories: project-local (`./commands/`), user (`~/.config/<cli>/plugins/`), config-defined paths
-- [ ] Subcommand routing: two-level dispatch (`cli → command → subcommand`), arg scope rules
-- [ ] Execution mode: `executionMode` export (`"run" | "complete"`) set before dynamic import
-- [ ] Plugin compatibility check: semver major mismatch → hard error at load time
-- [ ] Versioned types: `CommandManifestV1`, `RuntimeV1` (just v1 for now — establishes the pattern)
+- [x] `*.plugin.toml` minimal manifest format (`name`, `description`, `command`, `enabled`, `frameworkVersion`)
+- [x] Plugin discovery: recursive scan of configured directories
+- [ ] Plugin directories: project-local (`./commands/`), user (`~/.config/<cli>/plugins/`), config-defined paths (deferred to Phase 3 — config loading)
+- [x] Subcommand routing: two-level dispatch (`cli → command → subcommand`), arg scope rules
+- [x] Execution mode: `executionMode` export (`"run" | "complete"`) set before dynamic import
+- [x] Plugin compatibility check: semver major mismatch → hard error at load time
+- [ ] Versioned types: `CommandManifestV1`, `RuntimeV1` (deferred to Phase 8 — hardening)
 
 **Checkpoint:** drop a `*.plugin.toml` + TS file into `./commands/`, run the CLI, have the command appear and work. Try adding a second command and a subcommand. Does the plugin authoring experience feel right?
-
----
-
-## Phase 3 — Full Runtime Surface
-
-**Goal:** commands can do real work — read files, call APIs, show structured output.
-
-- [ ] `OutputInterface`: `table`, `list`, `json`, `success`, `warn` (TTY vs pipe behaviour)
-- [ ] `OutputInterface`: `spinner` + `withSpinner`, `progressBar` + `withProgressBar`
-- [ ] `FsInterface`: `read`, `readBytes`, `write`, `exists`, `list`, XDG path helpers
-- [ ] `StdinInterface`: `isTTY`, `read()`, `lines()` — prompt hard-error on non-TTY
-- [ ] `LogInterface`: `verbose`, `debug` — wired to `--verbose`/`--debug` global flags
-- [ ] Signal handling: `runtime.signal` (AbortSignal), `runtime.onExit()`, terminal cleanup on SIGINT/SIGTERM
-- [ ] `SecretsInterface`: `get`, `set`, `delete` — scoped to command, backed by `credentials.toml` (0600)
-- [ ] Config loading: two-phase TOML (`config.toml` top-level + command section), `runtime.config` + `runtime.commandConfig`
-- [ ] Env var isolation: only declared env vars exposed on `runtime.env`
-- [ ] `MockRuntime`: fill out all remaining fields (output calls recorded, fs virtual, fetch stub, secrets, signal abort)
-
-**Checkpoint:** write a command that reads a config file, calls a real API with a token from `credentials.toml`, streams results into a progress bar, and outputs a table. Run it piped (`| cat`) and confirm plain output. Hit Ctrl+C mid-run and confirm clean exit.
 
 ---
 
@@ -91,6 +74,37 @@ Progress: `[ ]` not started · `[x]` done · `[-]` in progress
 
 ---
 
+## Phase 7 subset — `cli.config.ts` + Binary Build (early slice)
+
+**Goal:** a product CLI can be built and run as a standalone binary — validates the full end-to-end stack including completions and prompts before investing in full runtime surface.
+
+- [ ] `defineConfig()` + `cli.config.ts` shape: name, displayName, version, dirs, env
+- [ ] Identity baked into binary at compile time (`__CLI_NAME__`, `__CLI_VERSION__`, etc.)
+- [ ] Build script: `bun build --compile`
+
+**Checkpoint:** build a minimal product binary. Run it with completions and interactive prompts. Confirm the wiring from schema → completion → prompt → run all works together end to end.
+
+---
+
+## Phase 3 — Full Runtime Surface
+
+**Goal:** commands can do real work — read files, call APIs, show structured output.
+
+- [ ] `OutputInterface`: `table`, `list`, `json`, `success`, `warn` (TTY vs pipe behaviour)
+- [ ] `OutputInterface`: `spinner` + `withSpinner`, `progressBar` + `withProgressBar`
+- [ ] `FsInterface`: `read`, `readBytes`, `write`, `exists`, `list`, XDG path helpers
+- [ ] `StdinInterface`: `isTTY`, `read()`, `lines()` — prompt hard-error on non-TTY
+- [ ] `LogInterface`: `verbose`, `debug` — wired to `--verbose`/`--debug` global flags
+- [ ] Signal handling: `runtime.signal` (AbortSignal), `runtime.onExit()`, terminal cleanup on SIGINT/SIGTERM
+- [ ] `SecretsInterface`: `get`, `set`, `delete` — scoped to command, backed by `credentials.toml` (0600)
+- [ ] Config loading: two-phase TOML (`config.toml` top-level + command section), `runtime.config` + `runtime.commandConfig`; also wires config-defined plugin dirs (from Phase 2)
+- [ ] Env var isolation: only declared env vars exposed on `runtime.env`
+- [ ] `MockRuntime`: fill out all remaining fields (output calls recorded, fs virtual, fetch stub, secrets, signal abort)
+
+**Checkpoint:** write a command that reads a config file, calls a real API with a token from `credentials.toml`, streams results into a progress bar, and outputs a table. Run it piped (`| cat`) and confirm plain output. Hit Ctrl+C mid-run and confirm clean exit.
+
+---
+
 ## Phase 6 — Built-in Commands
 
 **Goal:** the framework ships a complete out-of-the-box experience.
@@ -104,20 +118,18 @@ Progress: `[ ]` not started · `[x]` done · `[-]` in progress
 
 ---
 
-## Phase 7 — `cli.config.ts` + Build Pipeline
+## Phase 7 — `cli.config.ts` + Build Pipeline (full)
 
-**Goal:** a product CLI can be built, branded, and distributed as a standalone binary.
+**Goal:** a product CLI can be fully branded and distributed as a standalone binary.
 
-- [ ] `defineConfig()` + `cli.config.ts` shape: name, displayName, version, dirs, env, config schema, theme, releases
-- [ ] Identity baked into binary at compile time (`__CLI_NAME__`, `__CLI_VERSION__`, etc.)
-- [ ] Build script: `bun build --compile` + generate install artifacts
+- [x] `defineConfig()` + `cli.config.ts` shape (early slice, above)
 - [ ] `install.sh` generation (curl install)
 - [ ] npm wrapper package generation (`postinstall.js` downloads platform binary)
 - [ ] Homebrew formula + Scoop manifest generation
 - [ ] Middleware chain: `authMiddleware`, `telemetryMiddleware`, `errorMiddleware` — `skipMiddleware` on manifest
 - [ ] Typed context: `Runtime<TContext>`, `contextFactory` in `cli.config.ts`
 
-**Checkpoint:** create a minimal product CLI (`myctl`) on top of the framework. Build a binary, run it, confirm identity is correct. Install via the generated `install.sh`. Run `myctl --help` and confirm branding.
+**Checkpoint:** create a minimal product CLI (`myctl`) on top of the framework. Install via the generated `install.sh`. Run `myctl --help` and confirm branding.
 
 ---
 
@@ -125,6 +137,7 @@ Progress: `[ ]` not started · `[x]` done · `[-]` in progress
 
 **Goal:** the framework is safe to depend on — plugins don't break silently across versions.
 
+- [ ] Versioned types: `CommandManifestV1`, `RuntimeV1` (establishes the pattern)
 - [ ] Backwards compatibility integration tests: `CommandManifestV1` plugins run correctly against the current runtime
 - [ ] `cape/testing` export: `MockRuntime` + `runCommand()` helper as a documented, stable testing API
 - [ ] Schema validation: evaluate hand-rolled vs zod/arktype — add dependency if edge cases are unmanageable
@@ -137,8 +150,8 @@ Progress: `[ ]` not started · `[x]` done · `[-]` in progress
 
 ## Notes
 
-- Phases 1–3 are strictly sequential — each builds on the last.
-- Phases 4 and 5 (completions and prompt) are independent of each other and can be done in either order, or interleaved.
-- Phase 6 (built-ins) can start as soon as Phase 3 is done — it does not depend on completions or prompt being finished.
-- Phase 7 (build pipeline) is largely independent — `cli.config.ts` shape and `defineConfig()` can be sketched early even if the full build script comes later.
+- Completion engine (Phase 4) and interactive prompt (Phase 5) share the same schema-as-truth foundation — do them together before full runtime.
+- The early Phase 7 slice (defineConfig + binary build) validates end-to-end wiring before investing in the full runtime surface.
+- Phase 3 (full runtime) comes after prompts and completions so those interactions can be validated in a real binary.
+- Phase 6 (built-ins) depends on Phase 3 — particularly `SecretsInterface` for `init` and `FsInterface` for `update`.
 - Phase 8 should be started before the framework is used in production, not after.

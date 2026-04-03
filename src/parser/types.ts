@@ -1,8 +1,23 @@
-// CompletionSource is defined here for Phase 1 and re-exported from the
-// completion engine in Phase 4 once that module exists.
+/** Context passed to dynamic completion fetchers. */
+export interface CompletionCtx {
+  /** The partial word being completed. */
+  partial: string;
+  /** Flag values already typed on the command line (best-effort, may be incomplete). */
+  flags: Record<string, unknown>;
+}
+
 export type CompletionSource =
   | { type: "static"; values: string[] }
-  | { type: "dynamic"; resolver: string; cacheMs?: number; dependsOn?: string[] };
+  | {
+      type: "dynamic";
+      fetch: (ctx: CompletionCtx) => Promise<string[]>;
+      /** How long to cache results (ms). Omit to disable caching. */
+      cacheMs?: number;
+      /** Abort and return [] if fetch takes longer than this (ms). Default: 5000. */
+      timeoutMs?: number;
+      /** Other flag names whose values should be available in ctx.flags before fetching. */
+      dependsOn?: string[];
+    };
 
 export interface ArgSchema {
   positionals?: {

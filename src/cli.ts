@@ -1,11 +1,20 @@
 import { join } from "node:path";
 import { homedir } from "node:os";
+import { mkdir } from "node:fs/promises";
 import { tokenize } from "./parser/tokenize.ts";
 import { resolve, ParseError } from "./parser/resolve.ts";
 import { globalSchema, mergeSchemas, extractGlobalFlags } from "./parser/global-flags.ts";
 import { renderHelp } from "./help/render.ts";
 import { BasicRuntime } from "./runtime/basic.ts";
 import { discoverPlugins, loadPlugin } from "./loader/index.ts";
+import { resolveCompletions } from "./completion/resolve.ts";
+import {
+  generateCompletionScript,
+  completionInstallPath,
+  postInstallMessage,
+  detectShell,
+  type Shell,
+} from "./completion/shell.ts";
 import type { ArgSchema, ParsedArgs } from "./parser/types.ts";
 import type { InferParsedArgs } from "./parser/infer.ts";
 import type { CliInfo, CommandSummary } from "./help/types.ts";
@@ -71,7 +80,23 @@ export interface CliConfig extends CliInfo {
 export function createCli(config: CliConfig, commands: CommandDef[] = []) {
   return {
     async run(argv: string[] = process.argv.slice(2)): Promise<void> {
-      const allCommands = await resolveCommands(config, commands);
+      const userCommands = await resolveCommands(config, commands);
+      const builtins = buildBuiltins(config);
+      // User-defined commands (static + plugins) take priority over built-ins
+      const allCommands = mergeByName(userCommands, builtins);
+
+      // Completion mode: `mycli __complete <cword> [word0 word1 ... wordN]`
+      // cword is the 0-based index of the partial word in the words array.
+      if (argv[0] === "__complete") {
+        const cword = parseInt(argv[1] ?? "0", 10);
+        const words = argv.slice(2);
+        const partial = words[cword] ?? "";
+        const prevArgv = words.slice(0, cword);
+        const results = await resolveCompletions(allCommands, prevArgv, partial);
+        if (results.length > 0) process.stdout.write(results.join("\n") + "\n");
+        return;
+      }
+
       await dispatch(config, allCommands, argv);
     },
   };
@@ -234,6 +259,88 @@ async function dispatch(
       subcommands: toSummaries(subcommands),
     }));
   }
+}
+
+// ---------------------------------------------------------------------------
+// Built-in commands
+// ---------------------------------------------------------------------------
+
+/**
+ * Returns the set of built-in commands provided by the framework.
+ * Users can shadow any of these by defining a command with the same name.
+ */
+function buildBuiltins(config: CliConfig): CommandDef[] {
+  return [completionsCommand(config)];
+}
+
+function completionsCommand(config: CliConfig): CommandDef {
+  const shellFlag = {
+    type: "string" as const,
+    description: "Shell type: bash, zsh, or fish (default: auto-detect from $SHELL)",
+    complete: { type: "static" as const, values: ["bash", "zsh", "fish"] },
+  };
+
+  return {
+    name: "completions",
+    description: "Manage shell tab completions",
+    subcommands: [
+      {
+        name: "generate",
+        description: "Print the completion script for your shell to stdout",
+        schema: { flags: { shell: shellFlag } },
+        async run(args, runtime) {
+          const shell = resolveShellArg(args.flags["shell"] as string | undefined, runtime);
+          if (!shell) return;
+          runtime.print(generateCompletionScript(config.name, shell));
+        },
+      },
+      {
+        name: "install",
+        description: "Install tab completions for your shell",
+        schema: { flags: { shell: shellFlag } },
+        async run(args, runtime) {
+          const shell = resolveShellArg(args.flags["shell"] as string | undefined, runtime);
+          if (!shell) return;
+
+          const script = generateCompletionScript(config.name, shell);
+          const destPath = completionInstallPath(config.name, shell);
+
+          // Ensure parent directory exists
+          const dir = destPath.slice(0, destPath.lastIndexOf("/"));
+          await mkdir(dir, { recursive: true });
+          await Bun.write(destPath, script);
+
+          runtime.print(postInstallMessage(config.name, shell, destPath));
+        },
+      },
+    ],
+  };
+}
+
+/** Validates and returns the shell argument, printing an error on invalid input. */
+function resolveShellArg(raw: string | undefined, runtime: Runtime): Shell | undefined {
+  const detected = detectShell();
+  const shell = (raw ?? detected) as Shell | undefined;
+  if (!shell) {
+    runtime.printError(
+      "Error: could not detect shell. Pass --shell bash, --shell zsh, or --shell fish.",
+    );
+    return undefined;
+  }
+  if (!["bash", "zsh", "fish"].includes(shell)) {
+    runtime.printError(`Error: unsupported shell "${shell}". Use bash, zsh, or fish.`);
+    return undefined;
+  }
+  return shell;
+}
+
+/**
+ * Merges two command arrays. `primary` wins on name collision —
+ * any command in `fallback` whose name already appears in `primary` is skipped.
+ */
+function mergeByName(primary: CommandDef[], fallback: CommandDef[]): CommandDef[] {
+  const names = new Set(primary.map(c => c.name));
+  return [...primary, ...fallback.filter(c => !names.has(c.name))];
 }
 
 // ---------------------------------------------------------------------------
