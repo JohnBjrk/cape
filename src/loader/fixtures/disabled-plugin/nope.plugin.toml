@@ -1,0 +1,5 @@
+name = "nope"
+description = "This plugin is disabled"
+command = "./nope.ts"
+enabled = false
+frameworkVersion = "1.0.0"

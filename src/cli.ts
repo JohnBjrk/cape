@@ -1,8 +1,11 @@
+import { join } from "node:path";
+import { homedir } from "node:os";
 import { tokenize } from "./parser/tokenize.ts";
 import { resolve, ParseError } from "./parser/resolve.ts";
 import { globalSchema, mergeSchemas, extractGlobalFlags } from "./parser/global-flags.ts";
 import { renderHelp } from "./help/render.ts";
 import { BasicRuntime } from "./runtime/basic.ts";
+import { discoverPlugins, loadPlugin } from "./loader/index.ts";
 import type { ArgSchema, ParsedArgs } from "./parser/types.ts";
 import type { InferParsedArgs } from "./parser/infer.ts";
 import type { CliInfo, CommandSummary } from "./help/types.ts";
@@ -56,14 +59,56 @@ export function defineCommand<S extends ArgSchema>(def: {
   return def as CommandDef;
 }
 
-export interface CliConfig extends CliInfo {}
+export interface CliConfig extends CliInfo {
+  /**
+   * Additional directories to scan for *.plugin.toml files.
+   * The framework always scans ./commands/ and ~/.config/<name>/plugins/
+   * first — these dirs are appended after.
+   */
+  pluginDirs?: string[];
+}
 
-export function createCli(config: CliConfig, commands: CommandDef[]) {
+export function createCli(config: CliConfig, commands: CommandDef[] = []) {
   return {
     async run(argv: string[] = process.argv.slice(2)): Promise<void> {
-      await dispatch(config, commands, argv);
+      const allCommands = await resolveCommands(config, commands);
+      await dispatch(config, allCommands, argv);
     },
   };
+}
+
+/**
+ * Merges statically defined commands with plugins discovered from disk.
+ * Static commands take priority — a plugin with the same name as a static
+ * command is silently skipped.
+ */
+async function resolveCommands(
+  config: CliConfig,
+  staticCommands: CommandDef[],
+): Promise<CommandDef[]> {
+  const staticNames = new Set(staticCommands.map((c) => c.name));
+  const dirs = defaultPluginDirs(config.name).concat(config.pluginDirs ?? []);
+  const discovered = await discoverPlugins(dirs);
+
+  const pluginCommands: CommandDef[] = [];
+  for (const plugin of discovered) {
+    if (staticNames.has(plugin.manifest.name)) continue; // static wins
+    try {
+      const cmd = await loadPlugin(plugin, "run"); // mode is set per-dispatch in future
+      pluginCommands.push(cmd);
+    } catch (err) {
+      console.warn(`[cape] Failed to load plugin "${plugin.manifest.name}": ${err}`);
+    }
+  }
+
+  return [...staticCommands, ...pluginCommands];
+}
+
+function defaultPluginDirs(cliName: string): string[] {
+  return [
+    join(process.cwd(), "commands"),
+    join(homedir(), ".config", cliName, "plugins"),
+  ];
 }
 
 // ---------------------------------------------------------------------------

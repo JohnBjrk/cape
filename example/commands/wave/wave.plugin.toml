@@ -1,0 +1,5 @@
+name = "wave"
+description = "Wave at someone (loaded as a plugin)"
+command = "./wave.ts"
+enabled = true
+frameworkVersion = "1.0.0"

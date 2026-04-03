@@ -1,0 +1,5 @@
+name = "greet"
+description = "Greet someone"
+command = "./greet.ts"
+enabled = true
+frameworkVersion = "1.0.0"

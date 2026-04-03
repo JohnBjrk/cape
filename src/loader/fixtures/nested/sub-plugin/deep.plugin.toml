@@ -1,0 +1,5 @@
+name = "deep"
+description = "A deeply nested plugin"
+command = "./deep.ts"
+enabled = true
+frameworkVersion = "1.0.0"
