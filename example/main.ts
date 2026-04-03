@@ -1,9 +1,9 @@
-import { createCli } from "../src/cli.ts";
+import { createCli, defineCommand, defineSubcommand } from "../src/cli.ts";
 
 const cli = createCli(
   { name: "greet", version: "0.1.0", description: "A greeting CLI built on Cape" },
   [
-    {
+    defineCommand({
       name: "hello",
       description: "Say hello to someone",
       schema: {
@@ -14,22 +14,19 @@ const cli = createCli(
         },
       },
       async run(args, runtime) {
-        const name   = args.flags.name as string;
-        const shout  = args.flags.shout as boolean;
-        const repeat = args.flags.repeat as number;
-
-        for (let i = 0; i < repeat; i++) {
-          let msg = `Hello, ${name}!`;
-          if (shout) msg = msg.toUpperCase();
-          runtime.print(msg);
+        // No casts — types flow from the schema above
+        for (let i = 0; i < args.flags.repeat; i++) {
+          const msg = `Hello, ${args.flags.name}!`;
+          runtime.print(args.flags.shout ? msg.toUpperCase() : msg);
         }
       },
-    },
-    {
+    }),
+
+    defineCommand({
       name: "farewell",
       description: "Say goodbye",
       subcommands: [
-        {
+        defineSubcommand({
           name: "wave",
           description: "Wave goodbye to someone",
           schema: {
@@ -38,10 +35,10 @@ const cli = createCli(
             },
           },
           async run(args, runtime) {
-            runtime.print(`Goodbye, ${args.flags.name as string}! 👋`);
+            runtime.print(`Goodbye, ${args.flags.name}! 👋`);
           },
-        },
-        {
+        }),
+        defineSubcommand({
           name: "bow",
           description: "Bow farewell to someone",
           schema: {
@@ -50,11 +47,11 @@ const cli = createCli(
             },
           },
           async run(args, runtime) {
-            runtime.print(`Farewell, ${args.flags.name as string}. 🎩`);
+            runtime.print(`Farewell, ${args.flags.name}. 🎩`);
           },
-        },
+        }),
       ],
-    },
+    }),
   ],
 );
 

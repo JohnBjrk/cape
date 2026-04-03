@@ -4,6 +4,7 @@ import { globalSchema, mergeSchemas, extractGlobalFlags } from "./parser/global-
 import { renderHelp } from "./help/render.ts";
 import { BasicRuntime } from "./runtime/basic.ts";
 import type { ArgSchema, ParsedArgs } from "./parser/types.ts";
+import type { InferParsedArgs } from "./parser/infer.ts";
 import type { CliInfo, CommandSummary } from "./help/types.ts";
 import type { Runtime } from "./runtime/types.ts";
 
@@ -22,6 +23,37 @@ export interface CommandDef {
   schema?: ArgSchema;
   subcommands?: SubcommandDef[];
   run?(args: ParsedArgs, runtime: Runtime): Promise<void>;
+}
+
+/**
+ * Defines a subcommand with schema-inferred arg types.
+ * TypeScript captures the exact schema shape and types `args` in `run` accordingly —
+ * no casts needed inside the implementation.
+ */
+export function defineSubcommand<S extends ArgSchema>(def: {
+  name: string;
+  aliases?: string[];
+  description: string;
+  schema?: S;
+  run(args: InferParsedArgs<S>, runtime: Runtime): Promise<void>;
+}): SubcommandDef {
+  return def as SubcommandDef;
+}
+
+/**
+ * Defines a command with schema-inferred arg types.
+ * TypeScript captures the exact schema shape and types `args` in `run` accordingly —
+ * no casts needed inside the implementation.
+ */
+export function defineCommand<S extends ArgSchema>(def: {
+  name: string;
+  aliases?: string[];
+  description: string;
+  schema?: S;
+  subcommands?: SubcommandDef[];
+  run?(args: InferParsedArgs<S>, runtime: Runtime): Promise<void>;
+}): CommandDef {
+  return def as CommandDef;
 }
 
 export interface CliConfig extends CliInfo {}
