@@ -8,7 +8,13 @@ import { runPromptLoop, printAnswer, handleCancelled } from "./runner.ts";
 
 export interface TextState {
   value: string;
-  cursor: number;   // character index (0 = before first char)
+  cursor: number;
+  /**
+   * When true the current value is the default being shown as a placeholder
+   * (rendered dimmed). The first printable keypress replaces it entirely;
+   * cursor movement / backspace switches to normal editing instead.
+   */
+  isPlaceholder: boolean;
   error: string | undefined;
   done: boolean;
   cancelled: boolean;
@@ -25,29 +31,41 @@ export function textReducer(state: TextState, key: Key, validate?: (v: string) =
     case "enter": {
       const err = validate?.(state.value);
       if (err) return { ...state, error: err };
-      return { ...state, error: undefined, done: true };
+      return { ...state, isPlaceholder: false, error: undefined, done: true };
     }
 
     case "char":
+      if (state.isPlaceholder) {
+        // First keystroke replaces the placeholder entirely
+        return { value: key.char, cursor: 1, isPlaceholder: false, error: undefined, done: false, cancelled: false };
+      }
       return insertChar(state, key.char);
 
     case "backspace":
+      if (state.isPlaceholder) {
+        // Backspace on a placeholder clears it
+        return { ...state, value: "", cursor: 0, isPlaceholder: false };
+      }
       return deleteBack(state);
 
     case "delete":
+      if (state.isPlaceholder) {
+        return { ...state, value: "", cursor: 0, isPlaceholder: false };
+      }
       return deleteForward(state);
 
     case "left":
-      return { ...state, cursor: Math.max(0, state.cursor - 1) };
+      // Cursor movement deactivates placeholder mode — user is editing the default
+      return { ...state, isPlaceholder: false, cursor: Math.max(0, state.cursor - 1) };
 
     case "right":
-      return { ...state, cursor: Math.min(state.value.length, state.cursor + 1) };
+      return { ...state, isPlaceholder: false, cursor: Math.min(state.value.length, state.cursor + 1) };
 
     case "home":
-      return { ...state, cursor: 0 };
+      return { ...state, isPlaceholder: false, cursor: 0 };
 
     case "end":
-      return { ...state, cursor: state.value.length };
+      return { ...state, isPlaceholder: false, cursor: state.value.length };
 
     default:
       return state;
@@ -95,7 +113,9 @@ function renderText(state: TextState, opts: TextPromptOptions): string {
     return `${style.red("✗")} ${style.bold(opts.message)}`;
   }
 
-  const lines = [`${style.cyan("?")} ${style.bold(opts.message)} ${state.value}`];
+  // Show placeholder (default) dimmed; active input shown normally
+  const displayValue = state.isPlaceholder ? style.dim(state.value) : state.value;
+  const lines = [`${style.cyan("?")} ${style.bold(opts.message)} ${displayValue}`];
   if (state.error) lines.push(`  ${style.red(state.error)}`);
   return lines.join("\n");
 }
@@ -108,6 +128,7 @@ export async function text(opts: TextPromptOptions): Promise<string> {
   let state: TextState = {
     value: opts.default ?? "",
     cursor: (opts.default ?? "").length,
+    isPlaceholder: !!opts.default,
     error: undefined,
     done: false,
     cancelled: false,
@@ -116,7 +137,6 @@ export async function text(opts: TextPromptOptions): Promise<string> {
   const result = await runPromptLoop(
     () => {
       const line = renderText(state, opts);
-      // After rendering, reposition the cursor on the input line
       const inputCol = `? ${opts.message} `.length + state.cursor + 1;
       return line + cursor.col(inputCol);
     },

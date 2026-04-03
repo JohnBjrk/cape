@@ -30,7 +30,8 @@ export function autocompleteReducer(
   if (state.done || state.cancelled) return state;
 
   if (action.type === "items") {
-    return { ...state, items: action.items, index: -1, loading: false };
+    // Snap selection to first item so Enter always picks the top match
+    return { ...state, items: action.items, index: action.items.length > 0 ? 0 : -1, loading: false };
   }
 
   const { key } = action;
@@ -41,7 +42,11 @@ export function autocompleteReducer(
       return { ...state, cancelled: true };
 
     case "enter": {
-      const value = state.index >= 0 ? (state.items[state.index] ?? state.query) : state.query;
+      // Explicit selection > first item > typed query (when no items match)
+      const value =
+        state.index >= 0
+          ? (state.items[state.index] ?? state.query)
+          : (state.items[0] ?? state.query);
       return { ...state, query: value, done: true };
     }
 
@@ -91,21 +96,22 @@ export function autocompleteReducer(
 function insertChar(state: AutocompleteState, char: string): AutocompleteState {
   const { query, queryCursor: pos } = state;
   const newQuery = query.slice(0, pos) + char + query.slice(pos);
-  return { ...state, query: newQuery, queryCursor: pos + 1, loading: true };
+  // Clear selection while items refresh so the stale highlight doesn't linger
+  return { ...state, query: newQuery, queryCursor: pos + 1, index: -1, loading: true };
 }
 
 function deleteBack(state: AutocompleteState): AutocompleteState {
   const { query, queryCursor: pos } = state;
   if (pos === 0) return state;
   const newQuery = query.slice(0, pos - 1) + query.slice(pos);
-  return { ...state, query: newQuery, queryCursor: pos - 1, loading: true };
+  return { ...state, query: newQuery, queryCursor: pos - 1, index: -1, loading: true };
 }
 
 function deleteForward(state: AutocompleteState): AutocompleteState {
   const { query, queryCursor: pos } = state;
   if (pos === query.length) return state;
   const newQuery = query.slice(0, pos) + query.slice(pos + 1);
-  return { ...state, query: newQuery, loading: true };
+  return { ...state, query: newQuery, index: -1, loading: true };
 }
 
 // ---------------------------------------------------------------------------
@@ -165,11 +171,24 @@ export async function autocomplete(opts: AutocompletePromptOptions): Promise<str
     return choices.filter((c) => c.toLowerCase().includes(q));
   }
 
+  const initialItems = isStatic ? filterStatic(opts.default ?? "") : [];
+  // For static choices: highlight the default if it's present, otherwise the first item.
+  // For dynamic choices: items are empty until the first fetch returns, so start at -1;
+  // the items action handler will snap to 0 once results arrive.
+  const initialIndex = (() => {
+    if (initialItems.length === 0) return -1;
+    if (opts.default) {
+      const exact = initialItems.indexOf(opts.default);
+      if (exact !== -1) return exact;
+    }
+    return 0;
+  })();
+
   let state: AutocompleteState = {
     query: opts.default ?? "",
     queryCursor: (opts.default ?? "").length,
-    items: isStatic ? filterStatic(opts.default ?? "") : [],
-    index: -1,
+    items: initialItems,
+    index: initialIndex,
     loading: !isStatic,
     done: false,
     cancelled: false,

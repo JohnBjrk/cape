@@ -18,7 +18,7 @@ const key = (type: Key["type"]): Key => ({ type } as Key);
 // ---------------------------------------------------------------------------
 
 describe("textReducer", () => {
-  const base: TextState = { value: "", cursor: 0, error: undefined, done: false, cancelled: false };
+  const base: TextState = { value: "", cursor: 0, isPlaceholder: false, error: undefined, done: false, cancelled: false };
 
   it("inserts character at cursor", () => {
     const s = textReducer(base, char("h"));
@@ -123,6 +123,43 @@ describe("textReducer", () => {
     const done: TextState = { ...base, value: "hi", done: true, cursor: 2 };
     const s = textReducer(done, char("x"));
     expect(s.value).toBe("hi");
+  });
+
+  describe("placeholder (default value) behaviour", () => {
+    const withDefault: TextState = { value: "World", cursor: 5, isPlaceholder: true, error: undefined, done: false, cancelled: false };
+
+    it("first char replaces the placeholder entirely", () => {
+      const s = textReducer(withDefault, char("J"));
+      expect(s.value).toBe("J");
+      expect(s.cursor).toBe(1);
+      expect(s.isPlaceholder).toBe(false);
+    });
+
+    it("backspace clears the placeholder", () => {
+      const s = textReducer(withDefault, key("backspace"));
+      expect(s.value).toBe("");
+      expect(s.cursor).toBe(0);
+      expect(s.isPlaceholder).toBe(false);
+    });
+
+    it("delete clears the placeholder", () => {
+      const s = textReducer(withDefault, key("delete"));
+      expect(s.value).toBe("");
+      expect(s.isPlaceholder).toBe(false);
+    });
+
+    it("arrow key switches to edit mode without clearing", () => {
+      const s = textReducer(withDefault, key("left"));
+      expect(s.value).toBe("World");
+      expect(s.isPlaceholder).toBe(false);
+      expect(s.cursor).toBe(4);
+    });
+
+    it("Enter on placeholder accepts the default", () => {
+      const s = textReducer(withDefault, key("enter"));
+      expect(s.done).toBe(true);
+      expect(s.value).toBe("World");
+    });
   });
 });
 
@@ -309,20 +346,29 @@ describe("autocompleteReducer", () => {
     cancelled: false,
   };
 
-  it("typing chars updates query and sets loading", () => {
-    const s = autocompleteReducer(base, { type: "key", key: char("a") });
+  it("typing chars updates query, sets loading, and clears index", () => {
+    const s = autocompleteReducer({ ...base, index: 1 }, { type: "key", key: char("a") });
     expect(s.query).toBe("a");
     expect(s.queryCursor).toBe(1);
     expect(s.loading).toBe(true);
+    expect(s.index).toBe(-1);
   });
 
-  it("items action updates items and clears loading", () => {
+  it("items action updates items, clears loading, and snaps index to 0", () => {
     const s = autocompleteReducer(
       { ...base, loading: true },
       { type: "items", items: ["Alice"] },
     );
     expect(s.items).toEqual(["Alice"]);
     expect(s.loading).toBe(false);
+    expect(s.index).toBe(0);
+  });
+
+  it("items action sets index to -1 when items are empty", () => {
+    const s = autocompleteReducer(
+      { ...base, loading: true },
+      { type: "items", items: [] },
+    );
     expect(s.index).toBe(-1);
   });
 
@@ -357,8 +403,14 @@ describe("autocompleteReducer", () => {
     expect(s.query).toBe("Charlie");
   });
 
-  it("enter with no highlight sets done with typed query", () => {
-    const s = autocompleteReducer({ ...base, query: "custom" }, { type: "key", key: key("enter") });
+  it("enter with no highlight accepts the first item when items are present", () => {
+    const s = autocompleteReducer(base, { type: "key", key: key("enter") });
+    expect(s.done).toBe(true);
+    expect(s.query).toBe("Alice");
+  });
+
+  it("enter with no highlight and no items accepts the typed query", () => {
+    const s = autocompleteReducer({ ...base, items: [], query: "custom" }, { type: "key", key: key("enter") });
     expect(s.done).toBe(true);
     expect(s.query).toBe("custom");
   });
