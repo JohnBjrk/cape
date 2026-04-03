@@ -42,7 +42,9 @@ export interface ArgSchema {
 export interface ParsedArgs {
   flags: Record<string, unknown>;
   positionals: string[];
-  passthrough: string[];  // tokens after --
+  passthrough: string[];   // tokens after --
+  /** Flag names that were explicitly set by the user (excludes defaults). */
+  provided: Set<string>;
 }
 
 export type TokenType = "flag" | "value" | "separator";

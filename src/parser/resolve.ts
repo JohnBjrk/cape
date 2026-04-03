@@ -10,7 +10,16 @@ export class ParseError extends Error {
   }
 }
 
-export function resolve(tokens: Token[], schema: ArgSchema): ParsedArgs {
+export interface ResolveOptions {
+  /**
+   * When true, skips the required-flag and required-positional checks.
+   * Useful for partial parsing (e.g. before interactive prompting fills in
+   * missing required values).
+   */
+  skipRequired?: boolean;
+}
+
+export function resolve(tokens: Token[], schema: ArgSchema, opts?: ResolveOptions): ParsedArgs {
   const schemaFlags = schema.flags ?? {};
   const positionalDefs = schema.positionals ?? [];
 
@@ -101,22 +110,24 @@ export function resolve(tokens: Token[], schema: ArgSchema): ParsedArgs {
     }
   }
 
-  // Required flag check (only for string/number — required boolean is nonsensical)
-  for (const [name, def] of Object.entries(schemaFlags)) {
-    if (def.required && def.type !== "boolean" && !provided.has(name)) {
-      throw new ParseError(`missing required flag --${name}`);
+  if (!opts?.skipRequired) {
+    // Required flag check (only for string/number — required boolean is nonsensical)
+    for (const [name, def] of Object.entries(schemaFlags)) {
+      if (def.required && def.type !== "boolean" && !provided.has(name)) {
+        throw new ParseError(`missing required flag --${name}`);
+      }
+    }
+
+    // Required positional check
+    for (let j = 0; j < positionalDefs.length; j++) {
+      const posDef = positionalDefs[j]!;
+      if (!posDef.variadic && positionals[j] === undefined) {
+        throw new ParseError(`missing required argument <${posDef.name}>`);
+      }
     }
   }
 
-  // Required positional check
-  for (let j = 0; j < positionalDefs.length; j++) {
-    const posDef = positionalDefs[j]!;
-    if (!posDef.variadic && positionals[j] === undefined) {
-      throw new ParseError(`missing required argument <${posDef.name}>`);
-    }
-  }
-
-  return { flags, positionals, passthrough };
+  return { flags, positionals, passthrough, provided };
 }
 
 function setValue(

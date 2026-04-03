@@ -8,6 +8,8 @@ import { renderHelp } from "./help/render.ts";
 import { BasicRuntime } from "./runtime/basic.ts";
 import { discoverPlugins, loadPlugin } from "./loader/index.ts";
 import { resolveCompletions } from "./completion/resolve.ts";
+import { fromSchema, promptedToArgv } from "./prompt/from-schema.ts";
+import { NonTtyError, PromptCancelledError } from "./prompt/types.ts";
 import {
   generateCompletionScript,
   completionInstallPath,
@@ -225,10 +227,28 @@ async function dispatch(
     return;
   }
 
+  // --- interactive prompting for missing required flags (TTY only) ---
+  // Parse without required-checking first to discover what was provided,
+  // then prompt for anything missing, and feed prompted values back as argv.
+  let finalArgv = strippedArgv;
+  if (process.stdin.isTTY) {
+    try {
+      const partial = resolve(tokenize(strippedArgv), merged, { skipRequired: true });
+      const prompted = await fromSchema(merged, partial.provided);
+      const extra = promptedToArgv(prompted);
+      if (extra.length > 0) finalArgv = [...strippedArgv, ...extra];
+    } catch (err) {
+      if (err instanceof PromptCancelledError) {
+        process.exit(130);
+      }
+      if (!(err instanceof NonTtyError)) throw err;
+    }
+  }
+
   // --- parse the stripped argv (command/subcommand names removed) ---
   let parsed: ParsedArgs;
   try {
-    parsed = resolve(tokenize(strippedArgv), merged);
+    parsed = resolve(tokenize(finalArgv), merged);
   } catch (err) {
     if (err instanceof ParseError) {
       printError(`Error: ${err.message}`);
