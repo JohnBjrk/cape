@@ -1,0 +1,16 @@
+{
+  "name": "cape",
+  "module": "src/index.ts",
+  "type": "module",
+  "private": true,
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  },
+  "version": "0.1.0",
+  "scripts": {
+    "test": "bun test"
+  }
+}
