@@ -10,9 +10,9 @@ const cli = createCli(
       description: "Say hello to someone",
       schema: {
         flags: {
-          name:   { type: "string",  alias: "n", required: true, description: "Who to greet" },
-          shout:  { type: "boolean", alias: "s",                 description: "SHOUT the greeting" },
-          repeat: { type: "number",              default: 1,      description: "How many times to repeat" },
+          name: { type: "string", alias: "n", required: true, description: "Who to greet" },
+          shout: { type: "boolean", alias: "s", description: "SHOUT the greeting" },
+          repeat: { type: "number", default: 1, description: "How many times to repeat" },
         },
       },
       async run(args, runtime) {
@@ -21,6 +21,21 @@ const cli = createCli(
           const msg = `Hello, ${args.flags.name}!`;
           runtime.print(args.flags.shout ? msg.toUpperCase() : msg);
         }
+      },
+    }),
+    defineCommand({
+      name: "love",
+      description: "Love someone",
+      schema: {
+        flags: {
+          name: { type: "string", alias: "n", required: true, description: "Whom to love", complete: { type: "static", values: ["John", "Sofia"] } },
+          symbol: { type: "string", required: true, description: "Symbol", multiple: true, complete: { type: "static", values: ["❤️", "💖"] } }
+        },
+      },
+      async run(args, runtime) {
+        // No casts — types flow from the schema above
+        const msg = `${args.flags.name} ${args.flags.symbol.join("")}`;
+        runtime.print(msg);
       },
     }),
 
@@ -147,6 +162,7 @@ const cli = createCli(
           async run(_args, runtime) {
             const env = await autocomplete({
               message: "Select an environment",
+              default: "development",
               debounceMs: 300,
               choices: async (query, signal) => {
                 // Simulate a slow API call

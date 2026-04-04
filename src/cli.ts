@@ -5,7 +5,7 @@ import { tokenize } from "./parser/tokenize.ts";
 import { resolve, ParseError } from "./parser/resolve.ts";
 import { globalSchema, mergeSchemas, extractGlobalFlags } from "./parser/global-flags.ts";
 import { renderHelp } from "./help/render.ts";
-import { BasicRuntime } from "./runtime/basic.ts";
+import { BasicRuntime, type BasicRuntimeOptions } from "./runtime/basic.ts";
 import { discoverPlugins, loadPlugin } from "./loader/index.ts";
 import { resolveCompletions } from "./completion/resolve.ts";
 import { fromSchema, promptedToArgv } from "./prompt/from-schema.ts";
@@ -273,19 +273,35 @@ async function dispatch(
   const globals = extractGlobalFlags(parsed);
 
   // --- run ---
-  const runtime = new BasicRuntime(parsed, getEnv());
+  const activeSchema = subcommand?.schema ?? command.schema;
+  const runtimeOpts: BasicRuntimeOptions = {
+    args:        parsed,
+    rawEnv:      getEnv(),
+    globals,
+    cliName:     config.name,
+    commandName: subcommand ? `${command.name}/${subcommand.name}` : command.name,
+    schema:      activeSchema,
+  };
+  const runtime = new BasicRuntime(runtimeOpts);
 
-  if (subcommand) {
-    await subcommand.run(parsed, runtime);
-  } else if (command.run) {
-    await command.run(parsed, runtime);
-  } else {
-    // Command has subcommands but none was specified — show command help
-    print(renderHelp(config, {
-      level: "command",
-      command: { name: command.name, description: command.description, schema: cmdSchema },
-      subcommands: toSummaries(subcommands),
-    }));
+  // Load config.toml (non-fatal — missing file is fine)
+  await runtime.loadConfig(config.name, runtimeOpts.commandName);
+
+  try {
+    if (subcommand) {
+      await subcommand.run(parsed, runtime);
+    } else if (command.run) {
+      await command.run(parsed, runtime);
+    } else {
+      // Command has subcommands but none was specified — show command help
+      print(renderHelp(config, {
+        level: "command",
+        command: { name: command.name, description: command.description, schema: cmdSchema },
+        subcommands: toSummaries(subcommands),
+      }));
+    }
+  } finally {
+    runtime.teardown();
   }
 }
 

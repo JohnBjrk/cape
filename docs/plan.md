@@ -22,7 +22,7 @@ Progress: `[ ]` not started · `[x]` done · `[-]` in progress
 - [x] Help text renderer: top-level, command, and subcommand levels from schema
 - [x] Wire one hardcoded command end-to-end: manifest → arg parse → run
 
-**Checkpoint:** write a `hello` command with a `--name` flag. Run it, get help with `--help`, see a validation error with `--unknown-flag`. Confirm the design feels right before building the loader.
+**Checkpoint:** write a `hello` command with a `--name` flag. Run it, get help with `--help`, see a validation error with `--unknown-flag`. Confirm the design feels right before building the loader. ✓
 
 ---
 
@@ -32,74 +32,76 @@ Progress: `[ ]` not started · `[x]` done · `[-]` in progress
 
 - [x] `*.plugin.toml` minimal manifest format (`name`, `description`, `command`, `enabled`, `frameworkVersion`)
 - [x] Plugin discovery: recursive scan of configured directories
-- [ ] Plugin directories: project-local (`./commands/`), user (`~/.config/<cli>/plugins/`), config-defined paths (deferred to Phase 3 — config loading)
+- [ ] Plugin directories: config-defined paths (deferred to Phase 3 — config loading)
+- [x] Plugin directories: project-local (`./commands/`), user (`~/.config/<cli>/plugins/`)
 - [x] Subcommand routing: two-level dispatch (`cli → command → subcommand`), arg scope rules
 - [x] Execution mode: `executionMode` export (`"run" | "complete"`) set before dynamic import
 - [x] Plugin compatibility check: semver major mismatch → hard error at load time
 - [ ] Versioned types: `CommandManifestV1`, `RuntimeV1` (deferred to Phase 8 — hardening)
 
-**Checkpoint:** drop a `*.plugin.toml` + TS file into `./commands/`, run the CLI, have the command appear and work. Try adding a second command and a subcommand. Does the plugin authoring experience feel right?
+**Checkpoint:** drop a `*.plugin.toml` + TS file into `./commands/`, run the CLI, have the command appear and work. ✓
 
 ---
 
-## Phase 4 — Completion Engine + Shell Integration
+## Phase 4 — Completion Engine + Shell Integration ✓
 
 **Goal:** tab completion works in the shell.
 
-- [ ] `resolveCompletions()`: static and dynamic sources, `dependsOn` context
+- [x] `resolveCompletions()`: static and dynamic sources, `dependsOn` context
 - [ ] Completer caching: in-memory (per invocation) + filesystem (`~/.cache/<cli>/completions/`)
-- [ ] Completion timeout: wrap dynamic completers, return empty on timeout
-- [ ] Shell completion mode: `--complete --` flag detection, token stream → slot resolution
-- [ ] Shell scripts: bash, zsh, fish output formats
-- [ ] Built-in `completions install` command (writes shell script to appropriate location)
+- [x] Completion timeout: wrap dynamic completers, return empty on timeout
+- [x] Shell completion mode: `__complete` flag detection, token stream → slot resolution
+- [x] Shell scripts: bash, zsh, fish output formats
+- [x] Built-in `completions install` command (writes shell script to appropriate location)
 
-**Checkpoint:** install completions for bash or zsh. Tab-complete a command name, a flag, and a dynamic value (e.g. an environment name fetched from an API). Confirm it doesn't hang on a slow completer.
+**Checkpoint:** install completions, tab-complete command names, flags, and dynamic values. ✓
 
 ---
 
-## Phase 5 — Interactive Prompt
+## Phase 5 — Interactive Prompt ✓
 
 **Goal:** commands can prompt interactively for missing required args.
 
-- [ ] TTY input loop: raw byte reader, escape sequence state machine
-- [ ] `text` prompt type: free input with cursor movement
-- [ ] `select` prompt type: pick-one list (≤8 static values)
-- [ ] `autocomplete` prompt type: fuzzy filter + re-fetch, debounced with AbortSignal
-- [ ] `multi-select` prompt type: checkbox list, space to toggle
-- [ ] `confirm` prompt: `y/N`, throws on non-TTY
-- [ ] `runtime.prompt.fromSchema()`: walk schema, find unresolved required slots, present correct prompt type
-- [ ] ANSI rendering: dropdown below current line, erase on re-render, restore on exit
+- [x] TTY input loop: raw byte reader, escape sequence state machine
+- [x] `text` prompt type: free input with cursor movement, placeholder default
+- [x] `select` prompt type: pick-one list with arrow keys
+- [x] `autocomplete` prompt type: fuzzy filter + re-fetch, debounced with AbortSignal
+- [x] `multi-select` prompt type: checkbox list, space to toggle
+- [x] `confirm` prompt: `y/N`, throws on non-TTY
+- [x] `fromSchema()`: walk schema, find unresolved required slots, present correct prompt type
+- [x] ANSI rendering: list below input line, erase on re-render, restore on exit
+- [x] Auto-prompt wired into dispatch: missing required flags prompt on TTY, error on non-TTY
 
-**Checkpoint:** run a command without providing a required flag. Confirm it prompts interactively with the right prompt type. Try autocomplete with a live API-backed completer. Try running non-interactively (pipe stdin) and confirm it errors clearly rather than hanging.
-
----
-
-## Phase 7 subset — `cli.config.ts` + Binary Build (early slice)
-
-**Goal:** a product CLI can be built and run as a standalone binary — validates the full end-to-end stack including completions and prompts before investing in full runtime surface.
-
-- [ ] `defineConfig()` + `cli.config.ts` shape: name, displayName, version, dirs, env
-- [ ] Identity baked into binary at compile time (`__CLI_NAME__`, `__CLI_VERSION__`, etc.)
-- [ ] Build script: `bun build --compile`
-
-**Checkpoint:** build a minimal product binary. Run it with completions and interactive prompts. Confirm the wiring from schema → completion → prompt → run all works together end to end.
+**Checkpoint:** run a command without providing a required flag — prompted interactively with the right type. Built and tested in the compiled binary. ✓
 
 ---
 
-## Phase 3 — Full Runtime Surface
+## Phase 7 subset — `cli.config.ts` + Binary Build ✓
+
+**Goal:** a product CLI can be built and run as a standalone binary.
+
+- [x] `defineConfig()` + `cli.config.ts` shape: name, displayName, version, entry, outfile
+- [x] `--version` global flag wired to config version
+- [x] Build script: `bun build --compile` via `scripts/build.ts`
+
+**Checkpoint:** build a standalone binary, run with completions and interactive prompts. ✓
+
+---
+
+## Phase 3 — Full Runtime Surface ✓
 
 **Goal:** commands can do real work — read files, call APIs, show structured output.
 
-- [ ] `OutputInterface`: `table`, `list`, `json`, `success`, `warn` (TTY vs pipe behaviour)
-- [ ] `OutputInterface`: `spinner` + `withSpinner`, `progressBar` + `withProgressBar`
-- [ ] `FsInterface`: `read`, `readBytes`, `write`, `exists`, `list`, XDG path helpers
-- [ ] `StdinInterface`: `isTTY`, `read()`, `lines()` — prompt hard-error on non-TTY
-- [ ] `LogInterface`: `verbose`, `debug` — wired to `--verbose`/`--debug` global flags
-- [ ] Signal handling: `runtime.signal` (AbortSignal), `runtime.onExit()`, terminal cleanup on SIGINT/SIGTERM
-- [ ] `SecretsInterface`: `get`, `set`, `delete` — scoped to command, backed by `credentials.toml` (0600)
-- [ ] Config loading: two-phase TOML (`config.toml` top-level + command section), `runtime.config` + `runtime.commandConfig`; also wires config-defined plugin dirs (from Phase 2)
-- [ ] Env var isolation: only declared env vars exposed on `runtime.env`
-- [ ] `MockRuntime`: fill out all remaining fields (output calls recorded, fs virtual, fetch stub, secrets, signal abort)
+- [x] `OutputInterface`: `table`, `list`, `json`, `success`, `warn` (TTY vs pipe behaviour)
+- [x] `OutputInterface`: `spinner` + `withSpinner`, `progressBar` + `withProgressBar`
+- [x] `FsInterface`: `read`, `readBytes`, `write`, `exists`, `list`, XDG path helpers
+- [x] `StdinInterface`: `isTTY`, `read()`, `lines()` — prompt hard-error on non-TTY
+- [x] `LogInterface`: `verbose`, `debug` — wired to `--verbose`/`--debug` global flags
+- [x] Signal handling: `runtime.signal` (AbortSignal), `runtime.onExit()`, terminal cleanup on SIGINT/SIGTERM
+- [x] `SecretsInterface`: `get`, `set`, `delete` — scoped to command, backed by `credentials.toml` (0600)
+- [x] Config loading: two-phase TOML (`config.toml` top-level + command section), `runtime.config` + `runtime.commandConfig`
+- [x] Env var isolation: only declared env vars exposed on `runtime.env` (via `schema.env?: string[]`)
+- [x] `MockRuntime`: fill out all remaining fields (output calls recorded, fs virtual, secrets, signal abort)
 
 **Checkpoint:** write a command that reads a config file, calls a real API with a token from `credentials.toml`, streams results into a progress bar, and outputs a table. Run it piped (`| cat`) and confirm plain output. Hit Ctrl+C mid-run and confirm clean exit.
 
@@ -114,7 +116,7 @@ Progress: `[ ]` not started · `[x]` done · `[-]` in progress
 - [ ] Update check: non-blocking background check (at most once/day, cached in `~/.cache/<cli>/`)
 - [ ] `doctor`: validate plugin tree — unknown commands, flag conflicts, missing descriptions, wrong credential file permissions, version mismatches
 
-**Checkpoint:** run the CLI fresh (no config). Confirm `init` walks you through setup. Run `doctor` and confirm it catches a deliberately broken plugin (wrong `frameworkVersion`, missing description, shadowed flag).
+**Checkpoint:** run the CLI fresh (no config). Confirm `init` walks you through setup. Run `doctor` and confirm it catches a deliberately broken plugin.
 
 ---
 
