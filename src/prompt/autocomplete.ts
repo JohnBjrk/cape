@@ -1,6 +1,5 @@
 import type { Key, AutocompletePromptOptions } from "./types.ts";
 import { style } from "./ansi.ts";
-import { runPromptLoop, printAnswer, handleCancelled } from "./runner.ts";
 import { makeKeyReader } from "./input.ts";
 import { cursor, clearAbove, countLines } from "./ansi.ts";
 import { NonTtyError, PromptCancelledError } from "./types.ts";
@@ -119,10 +118,13 @@ function deleteForward(state: AutocompleteState): AutocompleteState {
 // ---------------------------------------------------------------------------
 
 const MAX_VISIBLE = 8;
+const SPINNER_FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
 
 export function renderAutocomplete(
   state: AutocompleteState,
   opts: AutocompletePromptOptions,
+  /** Current spinner frame index — incremented externally while loading. */
+  spinnerFrame = 0,
 ): string {
   if (state.done) {
     return `${style.green("✓")} ${style.bold(opts.message)} ${style.dim(state.query)}`;
@@ -131,9 +133,13 @@ export function renderAutocomplete(
     return `${style.red("✗")} ${style.bold(opts.message)}`;
   }
 
-  const loadingIndicator = state.loading ? style.dim(" …") : "";
-  const hint = style.dim("(type to filter, ↑↓ navigate, Tab/Enter to select)");
+  const spinnerChar = SPINNER_FRAMES[spinnerFrame % SPINNER_FRAMES.length]!;
+  const loadingIndicator = state.loading ? ` ${style.cyan(spinnerChar)}` : "";
+
+  // Input line: keep it short so it never wraps on typical terminals.
+  // The hint lives on its own line below so the two don't combine to >80 chars.
   const inputLine = `${style.cyan("?")} ${style.bold(opts.message)} ${state.query}${loadingIndicator}`;
+  const hintLine  = `  ${style.dim("(type to filter, ↑↓ navigate, Tab/Enter to select)")}`;
 
   const visible = state.items.slice(0, MAX_VISIBLE);
   const itemLines = visible.map((item, i) => {
@@ -149,8 +155,7 @@ export function renderAutocomplete(
     itemLines.push(style.dim(`    … ${state.items.length - MAX_VISIBLE} more`));
   }
 
-  const header = `${inputLine}  ${hint}`;
-  return [header, ...itemLines].join("\n");
+  return [inputLine, hintLine, ...itemLines].join("\n");
 }
 
 // ---------------------------------------------------------------------------
@@ -172,9 +177,6 @@ export async function autocomplete(opts: AutocompletePromptOptions): Promise<str
   }
 
   const initialItems = isStatic ? filterStatic(opts.default ?? "") : [];
-  // For static choices: highlight the default if it's present, otherwise the first item.
-  // For dynamic choices: items are empty until the first fetch returns, so start at -1;
-  // the items action handler will snap to 0 once results arrive.
   const initialIndex = (() => {
     if (initialItems.length === 0) return -1;
     if (opts.default) {
@@ -194,15 +196,60 @@ export async function autocomplete(opts: AutocompletePromptOptions): Promise<str
     cancelled: false,
   };
 
+  // ---------------------------------------------------------------------------
+  // Spinner animation (runs while state.loading === true)
+  // ---------------------------------------------------------------------------
+
+  let spinnerFrame = 0;
+  let spinnerTimer: ReturnType<typeof setInterval> | undefined;
+
+  function startSpinner() {
+    if (spinnerTimer) return;
+    spinnerTimer = setInterval(() => {
+      if (!state.loading) {
+        clearInterval(spinnerTimer!);
+        spinnerTimer = undefined;
+        return;
+      }
+      spinnerFrame++;
+      redraw();
+    }, 80);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Redraw
+  //
+  // Key invariant: after every redraw the cursor sits on the INPUT line (line 1
+  // of the prompt block) at column `inputCol`.  Setting linesRendered = 0 then
+  // means that the next clearAbove(0) = "\r\x1b[J" always erases from line 1
+  // to end-of-screen, no matter how many item lines are currently visible.
+  //
+  // This avoids the double-render bug: previously, linesRendered tracked the
+  // number of \n chars in the output, and cursor.col() left the cursor on the
+  // LAST item line.  When the loading state rendered as one \n-less line the
+  // cursor ended up at column inputCol on the prompt line — but if that line
+  // soft-wrapped (long hint + spinner > terminal width), the cursor was really
+  // on the wrapped second line.  clearAbove(0) would then erase from the
+  // second line only, leaving the first wrapped line visible as a ghost prompt.
+  // ---------------------------------------------------------------------------
+
   let linesRendered = -1;
 
   const redraw = () => {
     if (linesRendered >= 0) process.stdout.write(clearAbove(linesRendered));
-    const output = renderAutocomplete(state, opts);
-    // Position cursor on the input line
+
+    const output = renderAutocomplete(state, opts, spinnerFrame);
+    const nLines = countLines(output); // number of \n — equals (total lines - 1)
     const inputCol = `? ${opts.message} `.length + state.queryCursor + 1;
-    process.stdout.write(output + cursor.col(inputCol));
-    linesRendered = countLines(output);
+
+    // After writing `output` the cursor is on the last line (line nLines+1).
+    // Move it back up to the input line (line 1) so the next clearAbove(0)
+    // correctly erases everything from line 1 downward.
+    const moveUp = nLines > 0 ? cursor.up(nLines) : "";
+    process.stdout.write(output + moveUp + cursor.col(inputCol));
+
+    // Cursor is now on line 1 — clearAbove(0) is always sufficient.
+    linesRendered = 0;
   };
 
   process.stdout.write(cursor.hide);
@@ -228,6 +275,9 @@ export async function autocomplete(opts: AutocompletePromptOptions): Promise<str
     fetchController = new AbortController();
     const signal = fetchController.signal;
 
+    // Animate the spinner while the fetch is in-flight
+    startSpinner();
+
     fetchTimer = setTimeout(async () => {
       try {
         const fn = opts.choices as (q: string, s: AbortSignal) => Promise<string[]>;
@@ -235,8 +285,6 @@ export async function autocomplete(opts: AutocompletePromptOptions): Promise<str
         if (!signal.aborted) {
           state = autocompleteReducer(state, { type: "items", items });
           redraw();
-          // Wake up the key reader if it's waiting — resolve with a no-op key
-          // (handled by checking state.done/cancelled before the loop continues)
         }
       } catch {
         if (!signal.aborted) {
@@ -269,6 +317,7 @@ export async function autocomplete(opts: AutocompletePromptOptions): Promise<str
     }
   } finally {
     clearTimeout(fetchTimer);
+    clearInterval(spinnerTimer);
     fetchController?.abort();
     cleanup();
     if (linesRendered >= 0) process.stdout.write(clearAbove(linesRendered));
