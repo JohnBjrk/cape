@@ -50,7 +50,7 @@ function computeSlot(
   const cmdResult = freeValueAt(argv, 0, globalSchema);
   const command = cmdResult ? findByName(commands, cmdResult.value) : undefined;
 
-  if (!command) {
+  if (!command || !cmdResult) {
     if (partial.startsWith("-")) {
       return { kind: "flag-name", schema: globalSchema, provided: new Set() };
     }

@@ -10,3 +10,4 @@ export { executionMode } from "./execution-mode.ts";
 export type { ExecutionMode } from "./execution-mode.ts";
 export { createCli, defineCommand, defineSubcommand } from "./cli.ts";
 export type { CliConfig, InstallConfig, CommandDef, SubcommandDef } from "./cli.ts";
+export type { ConfigSchema, ConfigField } from "./parser/types.ts";

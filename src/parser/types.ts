@@ -1,3 +1,27 @@
+// ---------------------------------------------------------------------------
+// Config schema
+// ---------------------------------------------------------------------------
+
+/**
+ * Schema for a single config file key.  Mirrors the shape of flag definitions
+ * but scoped to what makes sense for config files (no alias / required / complete).
+ */
+export interface ConfigField {
+  type: "string" | "number" | "boolean";
+  description?: string;
+  default?: string | number | boolean;
+}
+
+/**
+ * Config schema declared on a `CliConfig` (top-level keys) or a `CommandDef`
+ * (command-scoped section).  Keys map to their field definitions.
+ */
+export type ConfigSchema = Record<string, ConfigField>;
+
+// ---------------------------------------------------------------------------
+// Completion
+// ---------------------------------------------------------------------------
+
 /** Context passed to dynamic completion fetchers. */
 export interface CompletionCtx {
   /** The partial word being completed. */

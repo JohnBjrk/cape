@@ -19,7 +19,7 @@ import {
   detectShell,
   type Shell,
 } from "./completion/shell.ts";
-import type { ArgSchema, ParsedArgs } from "./parser/types.ts";
+import type { ArgSchema, ParsedArgs, ConfigSchema } from "./parser/types.ts";
 import type { InferParsedArgs } from "./parser/infer.ts";
 import type { CliInfo, CommandSummary } from "./help/types.ts";
 import type { Runtime } from "./runtime/types.ts";
@@ -29,6 +29,8 @@ export interface SubcommandDef {
   aliases?: string[];
   description: string;
   schema?: ArgSchema;
+  /** Config schema for this subcommand's section in config.toml. */
+  config?: ConfigSchema;
   run(args: ParsedArgs, runtime: Runtime): Promise<void>;
 }
 
@@ -37,6 +39,8 @@ export interface CommandDef {
   aliases?: string[];
   description: string;
   schema?: ArgSchema;
+  /** Config schema for this command's section in config.toml. */
+  config?: ConfigSchema;
   subcommands?: SubcommandDef[];
   run?(args: ParsedArgs, runtime: Runtime): Promise<void>;
 }
@@ -99,6 +103,12 @@ export type InstallConfig =
   | { type: "custom"; url: string };
 
 export interface CliConfig extends CliInfo {
+  /**
+   * Schema for top-level keys in config.toml (and `.{name}.toml`).
+   * Declares types, descriptions, and defaults for `runtime.config`.
+   */
+  config?: ConfigSchema;
+
   /**
    * Additional directories to scan for *.plugin.toml files.
    * The framework always scans ./commands/ and ~/.config/<name>/plugins/
@@ -332,8 +342,17 @@ async function dispatch(
   };
   const runtime = new BasicRuntime(runtimeOpts);
 
-  // Load config.toml (non-fatal — missing file is fine)
-  await runtime.loadConfig(config.name, runtimeOpts.commandName, globals.config);
+  // Config section is always the parent command name so subcommands share [command] section.
+  // Merge schemas: subcommand config fields extend the parent command's section.
+  const commandConfigSchema = subcommand
+    ? { ...(command.config ?? {}), ...(subcommand.config ?? {}) }
+    : command.config;
+
+  await runtime.loadConfig(config.name, command.name, {
+    overridePath:  globals.config,
+    cliSchema:     config.config,
+    commandSchema: commandConfigSchema,
+  });
 
   try {
     if (subcommand) {

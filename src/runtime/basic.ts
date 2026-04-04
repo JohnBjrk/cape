@@ -8,7 +8,7 @@ import { createStdin, type StdinInterface } from "./stdin.ts";
 import { createLog, type LogInterface } from "./log.ts";
 import { createSignalManager, type SignalManager } from "./signal.ts";
 import { createSecrets, type SecretsInterface } from "./secrets.ts";
-import { loadConfig } from "./config.ts";
+import { loadConfig, type LoadConfigOptions } from "./config.ts";
 
 export interface BasicRuntimeOptions {
   args: ParsedArgs;
@@ -78,8 +78,8 @@ export class BasicRuntime implements Runtime {
   }
 
   /** Loads config.toml and populates this.config / this.commandConfig. */
-  async loadConfig(cliName: string, commandName: string, overridePath?: string): Promise<void> {
-    const result = await loadConfig(cliName, commandName, overridePath);
+  async loadConfig(cliName: string, commandSection: string, opts?: LoadConfigOptions): Promise<void> {
+    const result = await loadConfig(cliName, commandSection, opts);
     this.config        = result.config;
     this.commandConfig = result.commandConfig;
   }

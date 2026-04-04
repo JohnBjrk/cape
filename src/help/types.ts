@@ -2,6 +2,7 @@ import type { ArgSchema } from "../parser/types.ts";
 
 export interface CliInfo {
   name: string;
+  displayName?: string;
   version?: string;
   description: string;
 }
