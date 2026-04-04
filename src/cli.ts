@@ -46,6 +46,16 @@ export interface CommandDef {
 }
 
 /**
+ * A Runtime with both `commandConfig` and `config` narrowed to their inferred types.
+ * `CC` is the command-level config schema; `GC` is the CLI-level (global) config schema.
+ */
+type RuntimeWith<CC extends ConfigSchema, GC extends ConfigSchema> =
+  Omit<Runtime, "commandConfig" | "config"> & {
+    commandConfig: InferConfig<CC>;
+    config: InferConfig<GC>;
+  };
+
+/**
  * Defines a subcommand with schema-inferred arg types.
  * TypeScript captures the exact schema shape and types `args` in `run` accordingly —
  * no casts needed inside the implementation.
@@ -61,7 +71,7 @@ export function defineSubcommand<
   config?: CC;
   run(
     args: InferParsedArgs<S>,
-    runtime: Omit<Runtime, "commandConfig"> & { commandConfig: InferConfig<CC> },
+    runtime: RuntimeWith<CC, Record<never, ConfigField>>,
   ): Promise<void>;
 }): SubcommandDef {
   return def as SubcommandDef;
@@ -84,10 +94,58 @@ export function defineCommand<
   subcommands?: SubcommandDef[];
   run?(
     args: InferParsedArgs<S>,
-    runtime: Omit<Runtime, "commandConfig"> & { commandConfig: InferConfig<CC> },
+    runtime: RuntimeWith<CC, Record<never, ConfigField>>,
   ): Promise<void>;
 }): CommandDef {
   return def as CommandDef;
+}
+
+/**
+ * Creates typed `defineCommand` / `defineSubcommand` helpers pre-bound to the
+ * CLI-level config schema `GC`, so `runtime.config` is fully typed without
+ * repeating the schema on every command.
+ *
+ * @example
+ * ```ts
+ * // shared/_typed.ts
+ * import type { myCliConfig } from "../cli.config.ts";
+ * export const { defineCommand, defineSubcommand } =
+ *   typedWith<typeof myCliConfig.config>();
+ *
+ * // commands/deploy.ts
+ * import { defineCommand } from "../shared/_typed.ts";
+ * export const deployCommand = defineCommand({
+ *   name: "deploy",
+ *   run(_args, runtime) {
+ *     const url = runtime.config.apiUrl; // typed!
+ *   },
+ * });
+ * ```
+ */
+export function typedWith<GC extends ConfigSchema>() {
+  return {
+    defineCommand<S extends ArgSchema, CC extends ConfigSchema = Record<never, ConfigField>>(def: {
+      name: string;
+      aliases?: string[];
+      description: string;
+      schema?: S;
+      config?: CC;
+      subcommands?: SubcommandDef[];
+      run?(args: InferParsedArgs<S>, runtime: RuntimeWith<CC, GC>): Promise<void>;
+    }): CommandDef {
+      return def as CommandDef;
+    },
+    defineSubcommand<S extends ArgSchema, CC extends ConfigSchema = Record<never, ConfigField>>(def: {
+      name: string;
+      aliases?: string[];
+      description: string;
+      schema?: S;
+      config?: CC;
+      run(args: InferParsedArgs<S>, runtime: RuntimeWith<CC, GC>): Promise<void>;
+    }): SubcommandDef {
+      return def as SubcommandDef;
+    },
+  };
 }
 
 export interface SetupSecret {

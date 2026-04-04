@@ -103,14 +103,24 @@ export const initCommand = defineCommand({
 // ---------------------------------------------------------------------------
 
 function cliConfigTemplate(name: string): string {
-  return `import { defineConfig } from "cape";
+  return `import { defineConfig, typedWith } from "cape";
+
+// Declare top-level config keys here (available as runtime.config in all commands).
+// Example: apiUrl: { type: "string" as const, description: "Base API URL" }
+const globalConfig = {
+} as const;
 
 export default defineConfig({
   name: "${name}",
   displayName: "${toDisplayName(name)}",
   version: "0.1.0",
   description: "A CLI built with Cape",
+  config: globalConfig,
 });
+
+// Import defineCommand / defineSubcommand from here instead of "cape" to get
+// runtime.config typed from the schema above.
+export const { defineCommand, defineSubcommand } = typedWith<typeof globalConfig>();
 `;
 }
 
@@ -126,7 +136,7 @@ await cli.run();
 }
 
 function helloCommandTemplate(): string {
-  return `import { defineCommand } from "cape";
+  return `import { defineCommand } from "../cli.config.ts";
 
 export const helloCommand = defineCommand({
   name: "hello",

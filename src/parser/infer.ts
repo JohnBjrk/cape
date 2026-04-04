@@ -1,4 +1,4 @@
-import type { ArgSchema, ParsedArgs, CompletionSource, ConfigSchema, ConfigField } from "./types.ts";
+import type { ArgSchema, ParsedArgs, CompletionSource, ConfigSchema, ConfigField, ConfigScalarField } from "./types.ts";
 
 /**
  * The shape of a single flag definition — mirrors ArgSchema flags entry
@@ -60,7 +60,9 @@ export type InferParsedArgs<S extends ArgSchema> =
 // Config inference
 // ---------------------------------------------------------------------------
 
-type ConfigBaseType<T extends "string" | "number" | "boolean"> =
+type ScalarType = "string" | "number" | "boolean";
+
+type ConfigBaseType<T extends ScalarType> =
   T extends "string"  ? string  :
   T extends "number"  ? number  :
   T extends "boolean" ? boolean :
@@ -69,16 +71,21 @@ type ConfigBaseType<T extends "string" | "number" | "boolean"> =
 /**
  * Infers the TypeScript type of a single config value.
  *
+ * - type: "object"   → recursively infer nested ConfigSchema
  * - default provided → value is always present (never undefined)
  * - no default       → value may be undefined (key absent from all config files)
  */
 type InferConfigValue<F extends ConfigField> =
-  F extends { default: NonNullable<unknown> }
-    ? ConfigBaseType<F["type"]>
-    : ConfigBaseType<F["type"]> | undefined;
+  F extends { type: "object"; fields: infer FS extends ConfigSchema }
+    ? InferConfig<FS>
+    : F extends ConfigScalarField & { default: NonNullable<unknown> }
+      ? ConfigBaseType<F["type"]>
+      : F extends ConfigScalarField
+        ? ConfigBaseType<F["type"]> | undefined
+        : never;
 
 /**
- * Infers a typed commandConfig record from a ConfigSchema.
+ * Infers a typed config record from a ConfigSchema.
  * When the schema is empty (no config declared), falls back to
  * Record<string, unknown> so untyped access still compiles.
  */

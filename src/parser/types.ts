@@ -3,20 +3,30 @@
 // ---------------------------------------------------------------------------
 
 /**
- * Schema for a single config file key.  Mirrors the shape of flag definitions
- * but scoped to what makes sense for config files (no alias / required / complete).
+ * Config schema declared on a `CliConfig` (top-level keys) or a `CommandDef`
+ * (command-scoped section).  Keys map to their field definitions.
  */
-export interface ConfigField {
+export type ConfigSchema = Record<string, ConfigField>;
+
+/** A scalar (string / number / boolean) config field. */
+export interface ConfigScalarField {
   type: "string" | "number" | "boolean";
   description?: string;
   default?: string | number | boolean;
 }
 
+/** A nested-object config field whose sub-keys are declared in `fields`. */
+export interface ConfigObjectField {
+  type: "object";
+  description?: string;
+  fields: ConfigSchema;
+}
+
 /**
- * Config schema declared on a `CliConfig` (top-level keys) or a `CommandDef`
- * (command-scoped section).  Keys map to their field definitions.
+ * A single config file key — either a scalar value or a nested object.
+ * Discriminated on `type`.
  */
-export type ConfigSchema = Record<string, ConfigField>;
+export type ConfigField = ConfigScalarField | ConfigObjectField;
 
 // ---------------------------------------------------------------------------
 // Completion

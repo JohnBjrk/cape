@@ -8,6 +8,6 @@ export * from "./prompt/index.ts";
 export * from "./config/index.ts";
 export { executionMode } from "./execution-mode.ts";
 export type { ExecutionMode } from "./execution-mode.ts";
-export { createCli, defineCommand, defineSubcommand } from "./cli.ts";
+export { createCli, defineCommand, defineSubcommand, typedWith } from "./cli.ts";
 export type { CliConfig, InstallConfig, CommandDef, SubcommandDef } from "./cli.ts";
-export type { ConfigSchema, ConfigField } from "./parser/types.ts";
+export type { ConfigSchema, ConfigField, ConfigScalarField, ConfigObjectField } from "./parser/types.ts";

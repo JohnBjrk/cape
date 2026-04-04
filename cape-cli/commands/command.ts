@@ -100,7 +100,7 @@ function validateNonEmpty(v: string): string | undefined {
 function generateCommandFile(name: string, description: string): string {
   const exportName = `${toCamelCase(name)}Command`;
   return [
-    `import { defineCommand } from "cape";`,
+    `import { defineCommand } from "../cli.config.ts";`,
     ``,
     `export const ${exportName} = defineCommand({`,
     `  name: "${name}",`,

@@ -43,6 +43,6 @@ export interface CliConfigDef extends CliConfig {
  * });
  * ```
  */
-export function defineConfig(config: CliConfigDef): CliConfigDef {
+export function defineConfig<T extends CliConfigDef>(config: T): T {
   return config;
 }
