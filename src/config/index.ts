@@ -1,4 +1,5 @@
 import type { CliConfig } from "../cli.ts";
+import type { ConfigSchema } from "../parser/types.ts";
 
 /**
  * The full configuration for a Cape-based CLI.
@@ -45,4 +46,22 @@ export interface CliConfigDef extends CliConfig {
  */
 export function defineConfig<T extends CliConfigDef>(config: T): T {
   return config;
+}
+
+/**
+ * Defines a config schema with preserved literal types — no `as const` needed.
+ * Use this to declare the `globalConfig` in `cli.config.ts`.
+ *
+ * @example
+ * ```ts
+ * const globalConfig = defineConfigSchema({
+ *   apiUrl: { type: "string", description: "Base API URL" },
+ *   retries: { type: "number", default: 3 },
+ *   tags:    { type: "array", items: { type: "string" } },
+ * });
+ * export const { defineCommand } = typedWith<typeof globalConfig>();
+ * ```
+ */
+export function defineConfigSchema<S extends ConfigSchema>(schema: S): S {
+  return schema;
 }

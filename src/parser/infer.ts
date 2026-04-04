@@ -69,20 +69,39 @@ type ConfigBaseType<T extends ScalarType> =
   never;
 
 /**
+ * Infers the element type for an array field — same logic as InferConfigValue
+ * but without the optional/required wrapping (the array itself carries that).
+ * Supports scalars, objects, and nested arrays.
+ */
+type InferArrayItemType<F extends ConfigField> =
+  F extends { type: "object"; fields: infer FS extends ConfigSchema }
+    ? InferConfig<FS>
+    : F extends { type: "array"; items: infer I extends ConfigField }
+      ? InferArrayItemType<I>[]
+      : F extends ConfigScalarField
+        ? ConfigBaseType<F["type"]>
+        : never;
+
+/**
  * Infers the TypeScript type of a single config value.
  *
  * - type: "object"   → recursively infer nested ConfigSchema
+ * - type: "array"    → typed array of the inferred item type
  * - default provided → value is always present (never undefined)
  * - no default       → value may be undefined (key absent from all config files)
  */
 type InferConfigValue<F extends ConfigField> =
   F extends { type: "object"; fields: infer FS extends ConfigSchema }
     ? InferConfig<FS>
-    : F extends ConfigScalarField & { default: NonNullable<unknown> }
-      ? ConfigBaseType<F["type"]>
-      : F extends ConfigScalarField
-        ? ConfigBaseType<F["type"]> | undefined
-        : never;
+    : F extends { type: "array"; items: infer I extends ConfigField }
+      ? F extends { default: NonNullable<unknown> }
+        ? InferArrayItemType<I>[]
+        : InferArrayItemType<I>[] | undefined
+      : F extends ConfigScalarField & { default: NonNullable<unknown> }
+        ? ConfigBaseType<F["type"]>
+        : F extends ConfigScalarField
+          ? ConfigBaseType<F["type"]> | undefined
+          : never;
 
 /**
  * Infers a typed config record from a ConfigSchema.

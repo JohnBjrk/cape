@@ -15,6 +15,15 @@ export interface ConfigScalarField {
   default?: string | number | boolean;
 }
 
+/** An array config field whose items are described by a nested ConfigField. */
+export interface ConfigArrayField {
+  type: "array";
+  /** Schema for each element — any ConfigField variant, including object. */
+  items: ConfigField;
+  description?: string;
+  default?: unknown[];
+}
+
 /** A nested-object config field whose sub-keys are declared in `fields`. */
 export interface ConfigObjectField {
   type: "object";
@@ -23,10 +32,10 @@ export interface ConfigObjectField {
 }
 
 /**
- * A single config file key — either a scalar value or a nested object.
+ * A single config file key — a scalar value, an array, or a nested object.
  * Discriminated on `type`.
  */
-export type ConfigField = ConfigScalarField | ConfigObjectField;
+export type ConfigField = ConfigScalarField | ConfigArrayField | ConfigObjectField;
 
 // ---------------------------------------------------------------------------
 // Completion

@@ -103,12 +103,12 @@ export const initCommand = defineCommand({
 // ---------------------------------------------------------------------------
 
 function cliConfigTemplate(name: string): string {
-  return `import { defineConfig, typedWith } from "cape";
+  return `import { defineConfig, defineConfigSchema, typedWith } from "cape";
 
 // Declare top-level config keys here (available as runtime.config in all commands).
-// Example: apiUrl: { type: "string" as const, description: "Base API URL" }
-const globalConfig = {
-} as const;
+// Example: apiUrl: { type: "string", description: "Base API URL" }
+const globalConfig = defineConfigSchema({
+});
 
 export default defineConfig({
   name: "${name}",
