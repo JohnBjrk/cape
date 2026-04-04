@@ -151,6 +151,7 @@ const cli = createCli(
             const country = await autocomplete({
               message: "Search for a country",
               choices: countries,
+              default: "United Kingdom"
             });
             runtime.print(`Selected: ${country}`);
           },

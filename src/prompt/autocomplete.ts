@@ -16,6 +16,8 @@ export interface AutocompleteState {
   loading: boolean;
   done: boolean;
   cancelled: boolean;
+  /** The default value — used as fallback on Enter when items is empty and query is "". */
+  defaultValue?: string;
 }
 
 type AutocompleteAction =
@@ -41,11 +43,9 @@ export function autocompleteReducer(
       return { ...state, cancelled: true };
 
     case "enter": {
-      // Explicit selection > first item > typed query (when no items match)
-      const value =
-        state.index >= 0
-          ? (state.items[state.index] ?? state.query)
-          : (state.items[0] ?? state.query);
+      // Explicit selection > first item > typed query > default (when no items match)
+      const selected = state.index >= 0 ? state.items[state.index] : state.items[0];
+      const value = selected ?? (state.query || state.defaultValue) ?? "";
       return { ...state, query: value, done: true };
     }
 
@@ -140,7 +140,9 @@ export function renderAutocomplete(
 
   // Input line: keep it short so it never wraps on typical terminals.
   // The hint lives on its own line below so the two don't combine to >80 chars.
-  const inputLine = `${prefix} ${style.bold(opts.message)} ${state.query}`;
+  // When query is empty and a default exists, show the default as a dim placeholder.
+  const queryDisplay = state.query || (opts.default ? style.dim(opts.default) : "");
+  const inputLine = `${prefix} ${style.bold(opts.message)} ${queryDisplay}`;
   const hintLine  = `  ${style.dim("(type to filter, ↑↓ navigate, Tab/Enter to select)")}`;
 
   const visible = state.items.slice(0, MAX_VISIBLE);
@@ -171,31 +173,32 @@ export async function autocomplete(opts: AutocompletePromptOptions): Promise<str
 
   const isStatic = Array.isArray(opts.choices);
 
+  /** Float the default value to index 0 so it's always visible and pre-selected. */
+  function floatDefault(items: string[]): string[] {
+    if (!opts.default) return items;
+    const idx = items.indexOf(opts.default);
+    if (idx <= 0) return items;
+    return [items[idx]!, ...items.slice(0, idx), ...items.slice(idx + 1)];
+  }
+
   function filterStatic(query: string): string[] {
     const choices = opts.choices as string[];
-    if (!query) return choices;
+    if (!query) return floatDefault(choices);
     const q = query.toLowerCase();
     return choices.filter((c) => c.toLowerCase().includes(q));
   }
 
-  const initialItems = isStatic ? filterStatic(opts.default ?? "") : [];
-  const initialIndex = (() => {
-    if (initialItems.length === 0) return -1;
-    if (opts.default) {
-      const exact = initialItems.indexOf(opts.default);
-      if (exact !== -1) return exact;
-    }
-    return 0;
-  })();
+  const initialItems = isStatic ? filterStatic("") : [];
 
   let state: AutocompleteState = {
-    query: opts.default ?? "",
-    queryCursor: (opts.default ?? "").length,
+    query: "",
+    queryCursor: 0,
     items: initialItems,
-    index: initialIndex,
+    index: initialItems.length > 0 ? 0 : -1,
     loading: !isStatic,
     done: false,
     cancelled: false,
+    defaultValue: opts.default,
   };
 
   // ---------------------------------------------------------------------------
@@ -283,8 +286,10 @@ export async function autocomplete(opts: AutocompletePromptOptions): Promise<str
     fetchTimer = setTimeout(async () => {
       try {
         const fn = opts.choices as (q: string, s: AbortSignal) => Promise<string[]>;
-        const items = await fn(query, signal);
+        let items = await fn(query, signal);
         if (!signal.aborted) {
+          // Float default to top when no query is active, same as static behaviour
+          if (!query) items = floatDefault(items);
           state = autocompleteReducer(state, { type: "items", items });
           redraw();
         }
