@@ -9,7 +9,9 @@ import { BasicRuntime, type BasicRuntimeOptions } from "./runtime/basic.ts";
 import { discoverPlugins, loadPlugin } from "./loader/index.ts";
 import { resolveCompletions } from "./completion/resolve.ts";
 import { fromSchema, promptedToArgv } from "./prompt/from-schema.ts";
+import { text } from "./prompt/text.ts";
 import { NonTtyError, PromptCancelledError } from "./prompt/types.ts";
+import { parseToml, serializeToml, type TomlDocument } from "./runtime/toml.ts";
 import {
   generateCompletionScript,
   completionInstallPath,
@@ -70,6 +72,17 @@ export function defineCommand<S extends ArgSchema>(def: {
   return def as CommandDef;
 }
 
+export interface SetupSecret {
+  /** Key written to credentials.toml. */
+  key: string;
+  /** Prompt message shown to the user. */
+  message: string;
+  /** Optional hint printed below the prompt. */
+  description?: string;
+  /** Default value pre-filled in the prompt. */
+  default?: string;
+}
+
 export interface CliConfig extends CliInfo {
   /**
    * Additional directories to scan for *.plugin.toml files.
@@ -77,6 +90,20 @@ export interface CliConfig extends CliInfo {
    * first — these dirs are appended after.
    */
   pluginDirs?: string[];
+
+  /**
+   * GitHub repository in "owner/repo" format.
+   * Enables install.sh generation and the built-in `update` command.
+   */
+  repository?: string;
+
+  /**
+   * First-run setup prompts for the built-in `init` command.
+   * Each entry shows a text prompt and writes the answer to credentials.toml.
+   */
+  setup?: {
+    secrets?: SetupSecret[];
+  };
 }
 
 export function createCli(config: CliConfig, commands: CommandDef[] = []) {
@@ -322,7 +349,7 @@ async function dispatch(
  * Users can shadow any of these by defining a command with the same name.
  */
 function buildBuiltins(config: CliConfig): CommandDef[] {
-  return [completionsCommand(config)];
+  return [initCommand(config), completionsCommand(config)];
 }
 
 function completionsCommand(config: CliConfig): CommandDef {
@@ -366,6 +393,78 @@ function completionsCommand(config: CliConfig): CommandDef {
         },
       },
     ],
+  };
+}
+
+function initCommand(config: CliConfig): CommandDef {
+  return {
+    name: "init",
+    description: `Set up ${config.displayName ?? config.name}: configure credentials and install shell completions`,
+    async run(_args, runtime) {
+      if (!process.stdin.isTTY) {
+        runtime.printError("Error: 'init' requires an interactive terminal.");
+        runtime.exit(1);
+      }
+
+      runtime.print(`Welcome to ${config.displayName ?? config.name}!`);
+
+      // --- credentials setup -----------------------------------------------
+      const secrets = config.setup?.secrets ?? [];
+      if (secrets.length > 0) {
+        runtime.print("");
+        runtime.print("Configuring credentials...");
+
+        const credPath = runtime.fs.configPath("credentials.toml");
+        let doc: TomlDocument = {};
+        if (await runtime.fs.exists(credPath)) {
+          try { doc = parseToml(await runtime.fs.read(credPath)); } catch { /* start fresh */ }
+        }
+
+        for (const secret of secrets) {
+          const existing = (doc[""]?.[secret.key] as string | undefined);
+          if (secret.description) runtime.print(`  ${secret.description}`);
+
+          let value: string;
+          try {
+            value = await text({
+              message: secret.message,
+              default: existing ?? secret.default,
+            });
+          } catch (err) {
+            if (err instanceof PromptCancelledError) throw err; // let dispatch handle
+            throw err;
+          }
+
+          if (!doc[""]) doc[""] = {};
+          doc[""]![secret.key] = value;
+        }
+
+        await runtime.fs.write(credPath, serializeToml(doc), 0o600);
+        runtime.output.success("Credentials saved.");
+      }
+
+      // --- completions -----------------------------------------------------
+      runtime.print("");
+      const shell = detectShell();
+      if (shell) {
+        try {
+          const script = generateCompletionScript(config.name, shell);
+          const destPath = completionInstallPath(config.name, shell);
+          const dir = destPath.slice(0, destPath.lastIndexOf("/"));
+          await mkdir(dir, { recursive: true });
+          await Bun.write(destPath, script);
+          runtime.print(postInstallMessage(config.name, shell, destPath));
+        } catch {
+          runtime.printError(`Note: could not install completions automatically.`);
+          runtime.printError(`Run '${config.name} completions install' to set them up manually.`);
+        }
+      } else {
+        runtime.print(`Run '${config.name} completions install' to enable tab completions.`);
+      }
+
+      runtime.print("");
+      runtime.output.success(`${config.displayName ?? config.name} is ready. Run '${config.name} --help' to get started.`);
+    },
   };
 }
 

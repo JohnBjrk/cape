@@ -111,7 +111,7 @@ Progress: `[ ]` not started · `[x]` done · `[-]` in progress
 
 **Goal:** the framework ships a complete out-of-the-box experience.
 
-- [ ] `init`: first-run flow — prompt for required env vars, write `credentials.toml`, install completions
+- [x] `init`: first-run flow — prompt for required env vars, write `credentials.toml`, install completions
 - [ ] `update`: fetch latest release, download binary, atomic replace via temp file + rename
 - [ ] Update check: non-blocking background check (at most once/day, cached in `~/.cache/<cli>/`)
 - [ ] `doctor`: validate plugin tree — unknown commands, flag conflicts, missing descriptions, wrong credential file permissions, version mismatches
@@ -125,7 +125,7 @@ Progress: `[ ]` not started · `[x]` done · `[-]` in progress
 **Goal:** a product CLI can be fully branded and distributed as a standalone binary.
 
 - [x] `defineConfig()` + `cli.config.ts` shape (early slice, above)
-- [ ] `install.sh` generation (curl install)
+- [x] `install.sh` generation (curl install)
 - [ ] npm wrapper package generation (`postinstall.js` downloads platform binary)
 - [ ] Homebrew formula + Scoop manifest generation
 - [ ] Middleware chain: `authMiddleware`, `telemetryMiddleware`, `errorMiddleware` — `skipMiddleware` on manifest
