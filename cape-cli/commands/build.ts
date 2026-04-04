@@ -73,7 +73,7 @@ export const buildCommand = defineCommand({
     if ((config.install || config.repository) && version) {
       try {
         const installPath = join(cwd, "install.sh");
-        await Bun.write(installPath, generateInstallScript({ ...(config as never), version }));
+        await Bun.write(installPath, generateInstallScript({ ...config, version } as Parameters<typeof generateInstallScript>[0]));
         await chmod(installPath, 0o755);
         runtime.output.success(`install.sh: ${installPath}`);
         runtime.print(`  Distribute: curl -fsSL <url>/install.sh | sh`);

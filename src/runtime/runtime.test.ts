@@ -327,8 +327,8 @@ describe("MockRuntime", () => {
   it("abort() triggers registered exit handlers", async () => {
     const rt = new MockRuntime();
     const calls: string[] = [];
-    rt.onExit(() => calls.push("first"));
-    rt.onExit(() => calls.push("second"));
+    rt.onExit(() => { calls.push("first"); });
+    rt.onExit(() => { calls.push("second"); });
     await rt.abort();
     // LIFO order
     expect(calls).toEqual(["second", "first"]);

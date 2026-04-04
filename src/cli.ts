@@ -19,8 +19,8 @@ import {
   detectShell,
   type Shell,
 } from "./completion/shell.ts";
-import type { ArgSchema, ParsedArgs, ConfigSchema } from "./parser/types.ts";
-import type { InferParsedArgs } from "./parser/infer.ts";
+import type { ArgSchema, ParsedArgs, ConfigSchema, ConfigField } from "./parser/types.ts";
+import type { InferParsedArgs, InferConfig } from "./parser/infer.ts";
 import type { CliInfo, CommandSummary } from "./help/types.ts";
 import type { Runtime } from "./runtime/types.ts";
 
@@ -50,12 +50,19 @@ export interface CommandDef {
  * TypeScript captures the exact schema shape and types `args` in `run` accordingly —
  * no casts needed inside the implementation.
  */
-export function defineSubcommand<S extends ArgSchema>(def: {
+export function defineSubcommand<
+  S extends ArgSchema,
+  CC extends ConfigSchema = Record<never, ConfigField>,
+>(def: {
   name: string;
   aliases?: string[];
   description: string;
   schema?: S;
-  run(args: InferParsedArgs<S>, runtime: Runtime): Promise<void>;
+  config?: CC;
+  run(
+    args: InferParsedArgs<S>,
+    runtime: Omit<Runtime, "commandConfig"> & { commandConfig: InferConfig<CC> },
+  ): Promise<void>;
 }): SubcommandDef {
   return def as SubcommandDef;
 }
@@ -65,13 +72,20 @@ export function defineSubcommand<S extends ArgSchema>(def: {
  * TypeScript captures the exact schema shape and types `args` in `run` accordingly —
  * no casts needed inside the implementation.
  */
-export function defineCommand<S extends ArgSchema>(def: {
+export function defineCommand<
+  S extends ArgSchema,
+  CC extends ConfigSchema = Record<never, ConfigField>,
+>(def: {
   name: string;
   aliases?: string[];
   description: string;
   schema?: S;
+  config?: CC;
   subcommands?: SubcommandDef[];
-  run?(args: InferParsedArgs<S>, runtime: Runtime): Promise<void>;
+  run?(
+    args: InferParsedArgs<S>,
+    runtime: Omit<Runtime, "commandConfig"> & { commandConfig: InferConfig<CC> },
+  ): Promise<void>;
 }): CommandDef {
   return def as CommandDef;
 }

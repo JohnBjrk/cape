@@ -115,19 +115,23 @@ function mergeDocuments(base: TomlDocument, override: TomlDocument): TomlDocumen
 }
 
 /**
- * Fills in missing keys from schema defaults.
- * Values already present in `values` (from a config file) are never overwritten.
+ * Applies schema defaults and isolates config to declared keys.
+ *
+ * When a schema is provided:
+ *   - Only keys declared in the schema are returned (undeclared TOML keys are dropped).
+ *   - Missing keys receive their schema default if one is defined.
+ *
+ * When no schema is provided, all values pass through unchanged (e.g. top-level
+ * CliConfig.config is not declared → every command can read all top-level keys).
  */
 function applyDefaults(
   values: Record<string, unknown>,
   schema: ConfigSchema | undefined,
 ): Record<string, unknown> {
   if (!schema) return values;
-  const result: Record<string, unknown> = { ...values };
+  const result: Record<string, unknown> = {};
   for (const [key, field] of Object.entries(schema)) {
-    if (result[key] === undefined && field.default !== undefined) {
-      result[key] = field.default;
-    }
+    result[key] = values[key] !== undefined ? values[key] : field.default;
   }
   return result;
 }

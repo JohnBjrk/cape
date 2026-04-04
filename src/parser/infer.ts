@@ -1,4 +1,4 @@
-import type { ArgSchema, ParsedArgs, CompletionSource } from "./types.ts";
+import type { ArgSchema, ParsedArgs, CompletionSource, ConfigSchema, ConfigField } from "./types.ts";
 
 /**
  * The shape of a single flag definition — mirrors ArgSchema flags entry
@@ -55,3 +55,34 @@ export type InferParsedArgs<S extends ArgSchema> =
   S["flags"] extends Record<string, FlagDef>
     ? { flags: InferFlags<S["flags"]>; positionals: string[]; passthrough: string[] }
     : ParsedArgs;
+
+// ---------------------------------------------------------------------------
+// Config inference
+// ---------------------------------------------------------------------------
+
+type ConfigBaseType<T extends "string" | "number" | "boolean"> =
+  T extends "string"  ? string  :
+  T extends "number"  ? number  :
+  T extends "boolean" ? boolean :
+  never;
+
+/**
+ * Infers the TypeScript type of a single config value.
+ *
+ * - default provided → value is always present (never undefined)
+ * - no default       → value may be undefined (key absent from all config files)
+ */
+type InferConfigValue<F extends ConfigField> =
+  F extends { default: NonNullable<unknown> }
+    ? ConfigBaseType<F["type"]>
+    : ConfigBaseType<F["type"]> | undefined;
+
+/**
+ * Infers a typed commandConfig record from a ConfigSchema.
+ * When the schema is empty (no config declared), falls back to
+ * Record<string, unknown> so untyped access still compiles.
+ */
+export type InferConfig<CC extends ConfigSchema> =
+  [keyof CC] extends [never]
+    ? Record<string, unknown>
+    : { [K in keyof CC]: InferConfigValue<CC[K]> };
