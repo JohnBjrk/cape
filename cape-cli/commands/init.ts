@@ -1,6 +1,7 @@
 import { defineCommand } from "../../src/cli.ts";
 import { text } from "../../src/prompt/text.ts";
 import { confirm } from "../../src/prompt/confirm.ts";
+import { NonTtyError } from "../../src/prompt/types.ts";
 import { join } from "node:path";
 import { mkdir } from "node:fs/promises";
 import { existsSync } from "node:fs";
@@ -10,27 +11,31 @@ export const initCommand = defineCommand({
   name: "init",
   description: "Scaffold a new Cape-based CLI project",
   schema: {
-    positionals: [{ name: "name" }],
     flags: {
-      yes: { type: "boolean", alias: "y", description: "Skip confirmation prompts" },
+      name: { type: "string", alias: "n", description: "Project name" },
+      yes:  { type: "boolean", alias: "y", description: "Skip confirmation prompts" },
     },
   },
   async run(args, runtime) {
-    let name = args.positionals[0];
+    let name = args.flags.name as string | undefined;
 
     if (!name) {
-      if (!process.stdin.isTTY) {
-        runtime.printError("Error: project name is required in non-interactive mode.");
-        runtime.exit(1);
+      try {
+        name = await text({
+          message: "Project name",
+          validate: (v) => {
+            if (!v.trim()) return "Name cannot be empty";
+            if (!/^[a-z][a-z0-9-]*$/.test(v.trim())) return "Use lowercase letters, numbers, and hyphens (e.g. my-cli)";
+            return undefined;
+          },
+        });
+      } catch (err) {
+        if (err instanceof NonTtyError) {
+          runtime.printError("Error: project name required. Usage: cape init <name>");
+          runtime.exit(1);
+        }
+        throw err;
       }
-      name = await text({
-        message: "Project name",
-        validate: (v) => {
-          if (!v.trim()) return "Name cannot be empty";
-          if (!/^[a-z][a-z0-9-]*$/.test(v.trim())) return "Use lowercase letters, numbers, and hyphens (e.g. my-cli)";
-          return undefined;
-        },
-      });
     }
 
     name = name.trim();
@@ -47,14 +52,19 @@ export const initCommand = defineCommand({
       runtime.exit(1);
     }
 
-    if (process.stdin.isTTY && !args.flags.yes) {
-      const ok = await confirm({
-        message: `Create Cape CLI project in ./${name}/?`,
-        default: true,
-      });
-      if (!ok) {
-        runtime.print("Cancelled.");
-        return;
+    if (!args.flags.yes) {
+      try {
+        const ok = await confirm({
+          message: `Create Cape CLI project in ./${name}/?`,
+          default: true,
+        });
+        if (!ok) {
+          runtime.print("Cancelled.");
+          return;
+        }
+      } catch (err) {
+        if (!(err instanceof NonTtyError)) throw err;
+        // Non-TTY with no --yes: proceed without confirmation
       }
     }
 
@@ -145,6 +155,8 @@ function tsconfigContent(): string {
         target: "ESNext",
         module: "ESNext",
         moduleResolution: "bundler",
+        allowImportingTsExtensions: true,
+        noEmit: true,
         strict: true,
         types: ["bun-types"],
       },

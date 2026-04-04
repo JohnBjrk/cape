@@ -1,34 +1,40 @@
-import type { CliConfig } from "../cli.ts";
+import type { CliConfig, InstallConfig } from "../cli.ts";
 
 /**
  * Generates a portable `install.sh` for a Cape-based CLI.
  *
  * The script:
  *   1. Detects OS (darwin / linux) and arch (x64 / arm64)
- *   2. Downloads the matching binary from GitHub Releases
+ *   2. Downloads the matching binary from the configured source
  *   3. Installs to ~/.<name>/bin/<name>
  *
- * Binary naming convention on GitHub Releases:
+ * Binary naming convention (both GitHub and custom):
  *   <name>-darwin-arm64
  *   <name>-darwin-x64
  *   <name>-linux-arm64
  *   <name>-linux-x64
  *
- * Requires config.repository to be set ("owner/repo").
+ * Requires config.install (or the deprecated config.repository) to be set.
  */
 export function generateInstallScript(config: CliConfig & { version: string }): string {
-  if (!config.repository) {
-    throw new Error("generateInstallScript: config.repository is required (set it to \"owner/repo\")");
+  const installCfg = resolveInstallConfig(config);
+  if (!installCfg) {
+    throw new Error(
+      "generateInstallScript requires config.install to be set.\n" +
+      "  GitHub:  install: { type: \"github\", repo: \"owner/repo\" }\n" +
+      "  Custom:  install: { type: \"custom\", url: \"https://cli.example.com/releases/v{VERSION}\" }",
+    );
   }
 
   const name        = config.name;
   const displayName = config.displayName ?? config.name;
   const version     = config.version;
-  const repo        = config.repository;
 
-  // Use string concatenation for the ${VAR} references so JS template parsing
-  // doesn't swallow the shell variable syntax.
+  // Use string concatenation for ${VAR} shell references so JS template parsing
+  // doesn't consume the shell variable syntax.
   const S = "$";
+
+  const urlLine = buildUrlLine(installCfg, name, version, S);
 
   return [
     "#!/bin/sh",
@@ -38,7 +44,6 @@ export function generateInstallScript(config: CliConfig & { version: string }): 
     "",
     `NAME="${name}"`,
     `VERSION="${version}"`,
-    `REPO="${repo}"`,
     "",
     "# ---- OS detection -------------------------------------------------------",
     `OS="${S}(uname -s)"`,
@@ -64,7 +69,7 @@ export function generateInstallScript(config: CliConfig & { version: string }): 
     "",
     "# ---- Download ------------------------------------------------------------",
     `ASSET="${S}{NAME}-${S}{OS}-${S}{ARCH}"`,
-    `URL="https://github.com/${S}{REPO}/releases/download/v${S}{VERSION}/${S}{ASSET}"`,
+    urlLine,
     `TMP="${S}(mktemp)"`,
     "",
     `echo "Downloading ${S}{NAME} v${S}{VERSION} (${S}{OS}/${S}{ARCH})..."`,
@@ -92,4 +97,32 @@ export function generateInstallScript(config: CliConfig & { version: string }): 
     `echo "Run '${S}{NAME} init' to set up credentials and shell completions."`,
     `echo "Run '${S}{NAME} --help' to see available commands."`,
   ].join("\n") + "\n";
+}
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+function resolveInstallConfig(config: CliConfig): InstallConfig | undefined {
+  if (config.install) return config.install;
+  // Backwards compat: `repository: "owner/repo"` → github install
+  if (config.repository) return { type: "github", repo: config.repository };
+  return undefined;
+}
+
+function buildUrlLine(
+  install: InstallConfig,
+  name: string,
+  version: string,
+  S: string,
+): string {
+  if (install.type === "github") {
+    const repo = install.repo;
+    return `URL="https://github.com/${repo}/releases/download/v${S}{VERSION}/${S}{ASSET}"`;
+  }
+
+  // custom: replace {VERSION} placeholder in the URL at generation time,
+  // then append the asset name at runtime via shell variable.
+  const baseUrl = install.url.replace(/\{VERSION\}/g, version).replace(/\/$/, "");
+  return `URL="${baseUrl}/${S}{ASSET}"`;
 }

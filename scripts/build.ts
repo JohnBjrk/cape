@@ -53,7 +53,7 @@ console.log(`\n✓  Built: ${outfile}`);
 console.log(`   Run:   ./${config.outfile ?? config.name} --help`);
 
 // --- install.sh -----------------------------------------------------------
-if (config.repository) {
+if (config.install || config.repository) {
   const installPath = join(configDir, "install.sh");
   await Bun.write(installPath, generateInstallScript({ ...config, version: config.version }));
   // Make executable

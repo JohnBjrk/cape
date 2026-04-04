@@ -5,7 +5,6 @@ set -e
 
 NAME="cape"
 VERSION="0.1.0"
-REPO="cape-sh/cape"
 
 # ---- OS detection -------------------------------------------------------
 OS="$(uname -s)"
@@ -31,7 +30,7 @@ esac
 
 # ---- Download ------------------------------------------------------------
 ASSET="${NAME}-${OS}-${ARCH}"
-URL="https://github.com/${REPO}/releases/download/v${VERSION}/${ASSET}"
+URL="https://github.com/cape-sh/cape/releases/download/v${VERSION}/${ASSET}"
 TMP="$(mktemp)"
 
 echo "Downloading ${NAME} v${VERSION} (${OS}/${ARCH})..."

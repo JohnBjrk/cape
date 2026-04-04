@@ -170,12 +170,27 @@ export interface SetupSecret {
   default?: string;
 }
 
+/**
+ * Binary distribution configuration for install.sh generation.
+ *
+ * @example GitHub Releases
+ * install: { type: "github", repo: "myorg/myctl" }
+ *
+ * @example Self-hosted
+ * install: { type: "custom", url: "https://cli.mycompany.com/releases/v{VERSION}" }
+ */
+export type InstallConfig =
+  | { type: "github"; repo: string }
+  | { type: "custom"; url: string };
+
 export interface CliConfig {
   name: string;
   displayName?: string;
   version?: string;
   description?: string;
   pluginDirs?: string[];
+  install?: InstallConfig;
+  /** @deprecated Use `install: { type: "github", repo: "owner/repo" }` instead. */
   repository?: string;
   setup?: { secrets?: SetupSecret[] };
 }

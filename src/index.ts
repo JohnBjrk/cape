@@ -9,4 +9,4 @@ export * from "./config/index.ts";
 export { executionMode } from "./execution-mode.ts";
 export type { ExecutionMode } from "./execution-mode.ts";
 export { createCli, defineCommand, defineSubcommand } from "./cli.ts";
-export type { CliConfig, CommandDef, SubcommandDef } from "./cli.ts";
+export type { CliConfig, InstallConfig, CommandDef, SubcommandDef } from "./cli.ts";

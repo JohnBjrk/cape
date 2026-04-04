@@ -6,9 +6,14 @@ import { CAPE_BUNDLE, CAPE_TYPES } from "../src/embedded.ts";
 
 export const runCommand = defineCommand({
   name: "run",
-  description: "Run the CLI in the current directory (dev mode — requires bun in PATH)",
+  description: "Run the CLI in the current directory (dev mode)",
   schema: {
     flags: {
+      name: {
+        type: "string",
+        alias: "n",
+        description: "CLI name (must match the name in cli.config.ts)",
+      },
       "skip-refresh": {
         type: "boolean",
         description: "Skip refreshing node_modules/cape/ before running",
@@ -21,17 +26,23 @@ export const runCommand = defineCommand({
 
     if (!existsSync(configPath)) {
       runtime.printError("Error: no cli.config.ts found in the current directory.");
-      runtime.printError("Run `cape init <name>` to create a new Cape project.");
+      runtime.printError("Run `cape init --name <name>` to create a new Cape project.");
       runtime.exit(1);
     }
 
-    // Load config to find the entry point
+    // Load config — verify name if provided, read entry point
     let entry = "main.ts";
     try {
-      const mod = await import(configPath) as { default?: { entry?: string } };
-      entry = mod.default?.entry ?? "main.ts";
+      const mod = await import(configPath) as { default?: { name?: string; entry?: string } };
+      const cfg = mod.default;
+      const expectedName = args.flags.name as string | undefined;
+      if (expectedName && cfg?.name && cfg.name !== expectedName) {
+        runtime.printError(`Error: --name "${expectedName}" does not match the CLI name "${cfg.name}" in cli.config.ts.`);
+        runtime.exit(1);
+      }
+      entry = cfg?.entry ?? "main.ts";
     } catch {
-      // Fall back to default
+      // Fall back to defaults if config can't be loaded
     }
 
     const entryPath = resolve(cwd, entry);
@@ -41,23 +52,22 @@ export const runCommand = defineCommand({
       runtime.exit(1);
     }
 
-    // Refresh node_modules/cape/ so the runtime is up to date
+    // Refresh node_modules/cape/ so module resolution and types stay current
     if (!args.flags["skip-refresh"] && CAPE_BUNDLE) {
       await refreshCapeModule(cwd);
     }
 
-    // Collect forwarded args from passthrough (after --)
-    // Usage: cape run -- hello --name Alice
+    // Forward args: everything after `--`
+    // Usage: cape run --name mycli -- hello --arg1 "Hello" --arg2 "World"
     const forwardedArgs = args.passthrough;
 
-    runtime.log.debug(`Running: bun run ${entryPath} ${forwardedArgs.join(" ")}`);
+    runtime.log.debug(`Importing ${entryPath} with args: ${forwardedArgs.join(" ")}`);
 
-    const proc = Bun.spawnSync(
-      ["bun", "run", entryPath, ...forwardedArgs],
-      { cwd, stdout: "inherit", stderr: "inherit", stdin: "inherit" },
-    );
-
-    process.exit(proc.exitCode ?? 0);
+    // The cape binary embeds the Bun runtime — use dynamic import() to run the
+    // user's TypeScript directly without requiring bun in PATH.
+    // Override process.argv so the user's `cli.run()` sees the right args.
+    process.argv = [process.execPath, entryPath, ...forwardedArgs];
+    await import(entryPath);
   },
 });
 
@@ -73,7 +83,7 @@ async function refreshCapeModule(cwd: string): Promise<void> {
         2,
       ) + "\n",
     ),
-    Bun.write(join(capeModDir, "index.js"),    CAPE_BUNDLE),
-    Bun.write(join(capeModDir, "index.d.ts"),  CAPE_TYPES),
+    Bun.write(join(capeModDir, "index.js"),   CAPE_BUNDLE),
+    Bun.write(join(capeModDir, "index.d.ts"), CAPE_TYPES),
   ]);
 }

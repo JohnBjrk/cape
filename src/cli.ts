@@ -83,6 +83,21 @@ export interface SetupSecret {
   default?: string;
 }
 
+/**
+ * Where and how to publish binaries for `cape build`'s install.sh generation.
+ *
+ * @example GitHub Releases
+ * install: { type: "github", repo: "myorg/myctl" }
+ *
+ * @example Self-hosted
+ * install: { type: "custom", url: "https://cli.mycompany.com/releases/v{VERSION}" }
+ * // {VERSION} is replaced with the version string at build time.
+ * // Binaries are expected at <url>/<name>-<os>-<arch>
+ */
+export type InstallConfig =
+  | { type: "github"; repo: string }
+  | { type: "custom"; url: string };
+
 export interface CliConfig extends CliInfo {
   /**
    * Additional directories to scan for *.plugin.toml files.
@@ -92,8 +107,14 @@ export interface CliConfig extends CliInfo {
   pluginDirs?: string[];
 
   /**
-   * GitHub repository in "owner/repo" format.
-   * Enables install.sh generation and the built-in `update` command.
+   * Binary distribution configuration for install.sh generation.
+   * Replaces the older `repository` shorthand.
+   */
+  install?: InstallConfig;
+
+  /**
+   * @deprecated Use `install: { type: "github", repo: "owner/repo" }` instead.
+   * Kept for backwards compatibility.
    */
   repository?: string;
 
