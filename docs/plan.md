@@ -120,18 +120,20 @@ Progress: `[ ]` not started · `[x]` done · `[-]` in progress
 
 ---
 
-## Phase 7 — `cli.config.ts` + Build Pipeline (full)
+## Phase 7 — `cli.config.ts` + Build Pipeline (full) ✓
 
 **Goal:** a product CLI can be fully branded and distributed as a standalone binary.
 
 - [x] `defineConfig()` + `cli.config.ts` shape (early slice, above)
 - [x] `install.sh` generation (curl install)
+- [x] `cape` meta-CLI: `cape init`, `cape run`, `cape build`, `cape command add`
+- [x] Embedded runtime: cape bundles its own source; `cape init`/`cape run` write it to `node_modules/cape/`
 - [ ] npm wrapper package generation (`postinstall.js` downloads platform binary)
 - [ ] Homebrew formula + Scoop manifest generation
 - [ ] Middleware chain: `authMiddleware`, `telemetryMiddleware`, `errorMiddleware` — `skipMiddleware` on manifest
 - [ ] Typed context: `Runtime<TContext>`, `contextFactory` in `cli.config.ts`
 
-**Checkpoint:** create a minimal product CLI (`myctl`) on top of the framework. Install via the generated `install.sh`. Run `myctl --help` and confirm branding.
+**Checkpoint:** `cape init myapp` → `cape run -- hello --name World` → `cape build` → standalone binary that runs without bun. ✓
 
 ---
 

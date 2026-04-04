@@ -523,10 +523,11 @@ function extractCommandTokens(
   const commandName = cmdResult.value;
   const command = findByName(commands, commandName);
 
-  // Pass 2: find subcommand name using global + command schema
+  // Pass 2: find subcommand name — only when the command actually has subcommands,
+  // so that positional arguments aren't mistaken for subcommand tokens.
   let subcommandName: string | undefined;
   let subIdx = -1;
-  if (command) {
+  if (command && (command.subcommands ?? []).length > 0) {
     const scanSchema = mergeSchemas(globalSchema, command.schema ?? {});
     const subResult = schemaAwareFreeValue(argv, cmdResult.index + 1, scanSchema);
     if (subResult) {

@@ -23,10 +23,11 @@ export function renderHelp(
     push(`${style.bold("Usage:")} ${cli.name} <command> [subcommand] [flags]`, "");
   } else if (ctx.level === "command") {
     push(`${style.bold(ctx.command.name)} — ${ctx.command.description}`, "");
-    push(
-      `${style.bold("Usage:")} ${cli.name} ${ctx.command.name} <subcommand> [flags]`,
-      "",
-    );
+    const hasSubcmds = ctx.subcommands.length > 0;
+    const usageSuffix = hasSubcmds
+      ? "<subcommand> [flags]"
+      : buildPositionalUsage(ctx.command.schema) + "[flags]";
+    push(`${style.bold("Usage:")} ${cli.name} ${ctx.command.name} ${usageSuffix}`, "");
   } else {
     push(
       `${style.bold(`${ctx.command.name} ${ctx.subcommand.name}`)} — ${ctx.subcommand.description}`,
@@ -105,7 +106,7 @@ export function renderHelp(
   // --- footer hint ---
   if (ctx.level === "root") {
     push(style.dim(`Run '${cli.name} <command> --help' for command-specific help.`));
-  } else if (ctx.level === "command") {
+  } else if (ctx.level === "command" && ctx.subcommands.length > 0) {
     push(
       style.dim(
         `Run '${cli.name} ${ctx.command.name} <subcommand> --help' for subcommand-specific help.`,
@@ -119,6 +120,21 @@ export function renderHelp(
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
+
+/** Returns a usage fragment for positionals, e.g. "<name> " or "[args...] ". */
+function buildPositionalUsage(schema: ArgSchema): string {
+  const positionals = schema.positionals ?? [];
+  if (positionals.length === 0) return "";
+  return (
+    positionals
+      .map((p) =>
+        p.variadic
+          ? `[${p.name}...]`
+          : `[${p.name}]`,
+      )
+      .join(" ") + " "
+  );
+}
 
 function renderSummaries(items: CommandSummary[]): string[] {
   const colWidth = Math.max(...items.map((c) => c.name.length)) + COL_GAP;

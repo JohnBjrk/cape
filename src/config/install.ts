@@ -6,8 +6,7 @@ import type { CliConfig } from "../cli.ts";
  * The script:
  *   1. Detects OS (darwin / linux) and arch (x64 / arm64)
  *   2. Downloads the matching binary from GitHub Releases
- *   3. Installs to /usr/local/bin (falling back to sudo if needed,
- *      or ~/.local/bin if --user is passed)
+ *   3. Installs to ~/.<name>/bin/<name>
  *
  * Binary naming convention on GitHub Releases:
  *   <name>-darwin-arm64
@@ -80,24 +79,15 @@ export function generateInstallScript(config: CliConfig & { version: string }): 
     `chmod +x "${S}TMP"`,
     "",
     "# ---- Install location ---------------------------------------------------",
-    `if [ "${S}{1:-}" = "--user" ]; then`,
-    `  BIN_DIR="${S}{HOME}/.local/bin"`,
-    `  mkdir -p "${S}BIN_DIR"`,
-    `  mv "${S}TMP" "${S}{BIN_DIR}/${S}{NAME}"`,
-    `  echo "Installed ${S}{NAME} to ${S}{BIN_DIR}/${S}{NAME}"`,
-    `  echo ""`,
-    `  echo "Make sure ${S}HOME/.local/bin is in your PATH:"`,
-    `  echo '  export PATH="$HOME/.local/bin:$PATH"'`,
-    `elif [ -w /usr/local/bin ]; then`,
-    `  mv "${S}TMP" "/usr/local/bin/${S}{NAME}"`,
-    `  echo "Installed ${S}{NAME} to /usr/local/bin/${S}{NAME}"`,
-    `else`,
-    `  echo "Installing to /usr/local/bin (sudo required)..."`,
-    `  sudo mv "${S}TMP" "/usr/local/bin/${S}{NAME}"`,
-    `  echo "Installed ${S}{NAME} to /usr/local/bin/${S}{NAME}"`,
-    `fi`,
+    `BIN_DIR="${S}{HOME}/.${S}{NAME}/bin"`,
+    `mkdir -p "${S}BIN_DIR"`,
+    `mv "${S}TMP" "${S}{BIN_DIR}/${S}{NAME}"`,
+    `echo "Installed ${S}{NAME} to ${S}{BIN_DIR}/${S}{NAME}"`,
     "",
     "# ---- Done ---------------------------------------------------------------",
+    `echo ""`,
+    `echo "Add ${S}{NAME} to your PATH if you haven't already:"`,
+    `echo "  export PATH=\\"\\${S}HOME/.${name}/bin:\\${S}PATH\\""`,
     `echo ""`,
     `echo "Run '${S}{NAME} init' to set up credentials and shell completions."`,
     `echo "Run '${S}{NAME} --help' to see available commands."`,

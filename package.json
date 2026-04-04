@@ -11,6 +11,9 @@
   },
   "version": "0.1.0",
   "scripts": {
-    "test": "bun test"
+    "test": "bun test",
+    "cape:prebuild": "bun cape-cli/scripts/prebuild.ts",
+    "cape:build": "bun run cape:prebuild && bun scripts/build.ts cape-cli/cli.config.ts",
+    "cape:install": "bun run cape:build && mkdir -p $HOME/.cape/bin && cp cape-cli/cape $HOME/.cape/bin/cape && echo 'Installed cape to ~/.cape/bin/cape'"
   }
 }
