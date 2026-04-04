@@ -300,6 +300,14 @@ async function dispatch(
         subcommands: toSummaries(subcommands),
       }));
     }
+  } catch (err) {
+    // A prompt inside run() was cancelled with Ctrl+C or Escape.
+    // Users who want different behaviour (use a default, skip a step) can
+    // catch PromptCancelledError themselves before it reaches here.
+    if (err instanceof PromptCancelledError) {
+      process.exit(130);
+    }
+    throw err;
   } finally {
     runtime.teardown();
   }
