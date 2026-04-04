@@ -133,12 +133,14 @@ export function renderAutocomplete(
     return `${style.red("✗")} ${style.bold(opts.message)}`;
   }
 
-  const spinnerChar = SPINNER_FRAMES[spinnerFrame % SPINNER_FRAMES.length]!;
-  const loadingIndicator = state.loading ? ` ${style.cyan(spinnerChar)}` : "";
+  // While loading the spinner replaces the ? so the prefix position is stable.
+  const prefix = state.loading
+    ? style.cyan(SPINNER_FRAMES[spinnerFrame % SPINNER_FRAMES.length]!)
+    : style.cyan("?");
 
   // Input line: keep it short so it never wraps on typical terminals.
   // The hint lives on its own line below so the two don't combine to >80 chars.
-  const inputLine = `${style.cyan("?")} ${style.bold(opts.message)} ${state.query}${loadingIndicator}`;
+  const inputLine = `${prefix} ${style.bold(opts.message)} ${state.query}`;
   const hintLine  = `  ${style.dim("(type to filter, ↑↓ navigate, Tab/Enter to select)")}`;
 
   const visible = state.items.slice(0, MAX_VISIBLE);
