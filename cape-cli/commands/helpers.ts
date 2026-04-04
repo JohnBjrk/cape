@@ -1,4 +1,7 @@
 import type { Runtime } from "../../src/runtime/types.ts";
+import { join } from "node:path";
+import { mkdir } from "node:fs/promises";
+import { CAPE_BUNDLE, CAPE_TYPES } from "../src/embedded.ts";
 
 /**
  * Load the CLI config from cli.config.ts, verify the name against the
@@ -28,4 +31,25 @@ export async function resolveName(
   }
 
   return { name: cliName, config: config! };
+}
+
+/**
+ * Write the bundled cape runtime and type declarations into
+ * `<cwd>/node_modules/cape/` so the project can import from "cape".
+ */
+export async function refreshCapeModule(cwd: string): Promise<void> {
+  const capeModDir = join(cwd, "node_modules", "cape");
+  await mkdir(capeModDir, { recursive: true });
+  await Promise.all([
+    Bun.write(
+      join(capeModDir, "package.json"),
+      JSON.stringify(
+        { name: "cape", version: "0.1.0", type: "module", main: "index.js", types: "index.d.ts" },
+        null,
+        2,
+      ) + "\n",
+    ),
+    Bun.write(join(capeModDir, "index.js"),   CAPE_BUNDLE),
+    Bun.write(join(capeModDir, "index.d.ts"), CAPE_TYPES),
+  ]);
 }

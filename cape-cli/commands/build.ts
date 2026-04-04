@@ -3,8 +3,8 @@ import { resolve, join } from "node:path";
 import { existsSync } from "node:fs";
 import { mkdir, chmod } from "node:fs/promises";
 import { generateInstallScript } from "../../src/config/install.ts";
-import { CAPE_BUNDLE, CAPE_TYPES } from "../src/embedded.ts";
-import { resolveName } from "./helpers.ts";
+import { CAPE_BUNDLE } from "../src/embedded.ts";
+import { resolveName, refreshCapeModule } from "./helpers.ts";
 
 interface Platform { os: "darwin" | "linux"; arch: "arm64" | "x64" }
 
@@ -132,19 +132,3 @@ async function buildAllPlatforms(
   }
 }
 
-async function refreshCapeModule(cwd: string): Promise<void> {
-  const capeModDir = join(cwd, "node_modules", "cape");
-  await mkdir(capeModDir, { recursive: true });
-  await Promise.all([
-    Bun.write(
-      join(capeModDir, "package.json"),
-      JSON.stringify(
-        { name: "cape", version: "0.1.0", type: "module", main: "index.js", types: "index.d.ts" },
-        null,
-        2,
-      ) + "\n",
-    ),
-    Bun.write(join(capeModDir, "index.js"),   CAPE_BUNDLE),
-    Bun.write(join(capeModDir, "index.d.ts"), CAPE_TYPES),
-  ]);
-}

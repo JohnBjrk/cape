@@ -1,9 +1,7 @@
 import { defineCommand } from "../../src/cli.ts";
 import { resolve, join } from "node:path";
 import { existsSync } from "node:fs";
-import { mkdir } from "node:fs/promises";
-import { CAPE_BUNDLE, CAPE_TYPES } from "../src/embedded.ts";
-import { resolveName } from "./helpers.ts";
+import { resolveName, refreshCapeModule } from "./helpers.ts";
 
 export const runCommand = defineCommand({
   name: "run",
@@ -43,7 +41,7 @@ export const runCommand = defineCommand({
     }
 
     // Refresh node_modules/cape/ so module resolution and types stay current
-    if (!args.flags["skip-refresh"] && CAPE_BUNDLE) {
+    if (!args.flags["skip-refresh"]) {
       await refreshCapeModule(cwd);
     }
 
@@ -61,19 +59,3 @@ export const runCommand = defineCommand({
   },
 });
 
-async function refreshCapeModule(cwd: string): Promise<void> {
-  const capeModDir = join(cwd, "node_modules", "cape");
-  await mkdir(capeModDir, { recursive: true });
-  await Promise.all([
-    Bun.write(
-      join(capeModDir, "package.json"),
-      JSON.stringify(
-        { name: "cape", version: "0.1.0", type: "module", main: "index.js", types: "index.d.ts" },
-        null,
-        2,
-      ) + "\n",
-    ),
-    Bun.write(join(capeModDir, "index.js"),   CAPE_BUNDLE),
-    Bun.write(join(capeModDir, "index.d.ts"), CAPE_TYPES),
-  ]);
-}
