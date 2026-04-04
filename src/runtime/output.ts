@@ -62,6 +62,88 @@ export interface OutputInterface {
 }
 
 // ---------------------------------------------------------------------------
+// JSON-mode output (buffers all output, emits one JSON object at flush)
+// ---------------------------------------------------------------------------
+
+interface JsonOutputInternal extends OutputInterface {
+  /** Flush the accumulated output as a single JSON value to stdout. */
+  flushJson(): void;
+}
+
+/**
+ * Creates an output that accumulates calls and emits a single JSON object.
+ *
+ * Flush shape:
+ *   - texts=[], results=[v]         → v  (unwrapped single value)
+ *   - texts=[], results=[v1,v2]     → { results: [v1, v2] }
+ *   - texts=[t], results=[]         → { output: [t] }
+ *   - texts=[t], results=[v]        → { output: [t], results: [v] }
+ *
+ * Texts are suppressed when quiet=true (results still captured).
+ * printError / warn always write to stderr (not captured).
+ */
+export function createJsonOutput(quiet: boolean): JsonOutputInternal {
+  const texts: string[]   = [];
+  const results: unknown[] = [];
+
+  function addText(text: string) {
+    if (!quiet) texts.push(text);
+  }
+  function addResult(value: unknown) {
+    results.push(value);
+  }
+
+  const silentSpinner: Spinner = {
+    update() {},
+    stop()  {},
+    succeed(msg?) { if (msg) addText(msg); },
+    fail(msg?)    { if (msg) addText(msg); },
+  };
+
+  const silentBar: ProgressBar = {
+    tick()           {},
+    setTotal()       {},
+    done(msg?)       { if (msg) addText(msg); },
+  };
+
+  return {
+    print(text)       { addText(text); },
+    printError(text)  { process.stderr.write(text + "\n"); },
+    success(msg)      { addText(`✓ ${msg}`); },
+    warn(msg)         { process.stderr.write(`⚠ ${msg}\n`); },
+    json(value)       { addResult(value); },
+    table(rows)       { addResult(rows); },
+    list(items)       { addResult(items); },
+    spinner()         { return silentSpinner; },
+    async withSpinner<T>(_msg: string, fn: (s: Spinner) => Promise<T>) {
+      return fn(silentSpinner);
+    },
+    progressBar()     { return silentBar; },
+    async withProgressBar<T>(_total: number, fn: (tick: (n?: number) => void) => Promise<T>) {
+      return fn(() => {});
+    },
+
+    flushJson() {
+      const hasTexts   = texts.length > 0;
+      const hasResults = results.length > 0;
+      let value: unknown;
+
+      if (!hasTexts && hasResults) {
+        value = results.length === 1 ? results[0] : { results };
+      } else if (hasTexts && !hasResults) {
+        value = { output: texts };
+      } else if (hasTexts && hasResults) {
+        value = { output: texts, results };
+      } else {
+        value = {};
+      }
+
+      process.stdout.write(JSON.stringify(value, null, 2) + "\n");
+    },
+  };
+}
+
+// ---------------------------------------------------------------------------
 // Real implementation (wired to process.stdout / stderr)
 // ---------------------------------------------------------------------------
 

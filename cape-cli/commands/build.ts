@@ -4,6 +4,7 @@ import { existsSync } from "node:fs";
 import { mkdir, chmod } from "node:fs/promises";
 import { generateInstallScript } from "../../src/config/install.ts";
 import { CAPE_BUNDLE, CAPE_TYPES } from "../src/embedded.ts";
+import { resolveName } from "./helpers.ts";
 
 interface Platform { os: "darwin" | "linux"; arch: "arm64" | "x64" }
 
@@ -40,18 +41,8 @@ export const buildCommand = defineCommand({
       runtime.exit(1);
     }
 
-    // Load config
-    let config: Record<string, unknown>;
-    try {
-      const mod = await import(configPath) as { default?: Record<string, unknown> };
-      if (!mod.default) throw new Error("No default export");
-      config = mod.default;
-    } catch (err) {
-      runtime.printError(`Error: could not load cli.config.ts: ${err instanceof Error ? err.message : err}`);
-      runtime.exit(1);
-    }
-
-    const name    = config.name as string;
+    // Load config (no --name flag on build; just load and proceed)
+    const { name, config } = await resolveName(configPath, undefined, runtime);
     const version = config.version as string | undefined;
     const entry   = resolve(cwd, (config.entry as string | undefined) ?? "main.ts");
     const outdir  = resolve(cwd, args.flags.outdir as string);

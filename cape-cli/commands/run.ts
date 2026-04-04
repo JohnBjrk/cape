@@ -3,6 +3,7 @@ import { resolve, join } from "node:path";
 import { existsSync } from "node:fs";
 import { mkdir } from "node:fs/promises";
 import { CAPE_BUNDLE, CAPE_TYPES } from "../src/embedded.ts";
+import { resolveName } from "./helpers.ts";
 
 export const runCommand = defineCommand({
   name: "run",
@@ -31,19 +32,8 @@ export const runCommand = defineCommand({
     }
 
     // Load config — verify name if provided, read entry point
-    let entry = "main.ts";
-    try {
-      const mod = await import(configPath) as { default?: { name?: string; entry?: string } };
-      const cfg = mod.default;
-      const expectedName = args.flags.name as string | undefined;
-      if (expectedName && cfg?.name && cfg.name !== expectedName) {
-        runtime.printError(`Error: --name "${expectedName}" does not match the CLI name "${cfg.name}" in cli.config.ts.`);
-        runtime.exit(1);
-      }
-      entry = cfg?.entry ?? "main.ts";
-    } catch {
-      // Fall back to defaults if config can't be loaded
-    }
+    const { config } = await resolveName(configPath, args.flags.name as string | undefined, runtime);
+    const entry = (config.entry as string | undefined) ?? "main.ts";
 
     const entryPath = resolve(cwd, entry);
     if (!existsSync(entryPath)) {

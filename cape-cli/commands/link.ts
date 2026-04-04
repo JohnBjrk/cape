@@ -22,7 +22,7 @@ export const linkCommand = defineCommand({
       runtime.exit(1);
     }
 
-    const cliName = await resolveName(configPath, args.flags.name as string | undefined, runtime);
+    const { name: cliName } = await resolveName(configPath, args.flags.name as string | undefined, runtime);
 
     const binDir  = join(homedir(), `.${cliName}`, "bin");
     const shimPath = join(binDir, cliName);

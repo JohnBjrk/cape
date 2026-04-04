@@ -2,7 +2,7 @@ import type { ParsedArgs } from "../parser/types.ts";
 import type { ArgSchema } from "../parser/types.ts";
 import type { GlobalFlags } from "../parser/global-flags.ts";
 import type { Runtime } from "./types.ts";
-import { createOutput, type OutputInterface } from "./output.ts";
+import { createOutput, createJsonOutput, type OutputInterface } from "./output.ts";
 import { createFs, type FsInterface } from "./fs.ts";
 import { createStdin, type StdinInterface } from "./stdin.ts";
 import { createLog, type LogInterface } from "./log.ts";
@@ -38,6 +38,7 @@ export class BasicRuntime implements Runtime {
 
   private _signalManager: SignalManager;
   private _exitHandlers: Array<() => void | Promise<void>> = [];
+  private _flushJson: (() => void) | undefined;
 
   constructor(opts: BasicRuntimeOptions) {
     this.args = opts.args;
@@ -45,11 +46,17 @@ export class BasicRuntime implements Runtime {
 
     const { globals, cliName, commandName } = opts;
 
-    this.output = createOutput({
-      noColor: globals.noColor,
-      quiet:   globals.quiet,
-      isTTY:   !!process.stdout.isTTY,
-    });
+    if (globals.json) {
+      const jsonOut = createJsonOutput(globals.quiet);
+      this.output       = jsonOut;
+      this._flushJson   = () => jsonOut.flushJson();
+    } else {
+      this.output = createOutput({
+        noColor: globals.noColor,
+        quiet:   globals.quiet,
+        isTTY:   !!process.stdout.isTTY,
+      });
+    }
 
     this.fs     = createFs(cliName);
     this.stdin  = createStdin();
@@ -60,27 +67,35 @@ export class BasicRuntime implements Runtime {
     this.signal = this._signalManager.signal;
   }
 
+  /** Call after successful command.run() to emit buffered JSON (if --json). */
+  flushOutput(): void {
+    this._flushJson?.();
+  }
+
   /** Call after the command finishes to remove signal listeners. */
   teardown(): void {
     this._signalManager.teardown();
   }
 
   /** Loads config.toml and populates this.config / this.commandConfig. */
-  async loadConfig(cliName: string, commandName: string): Promise<void> {
-    const result = await loadConfig(cliName, commandName);
+  async loadConfig(cliName: string, commandName: string, overridePath?: string): Promise<void> {
+    const result = await loadConfig(cliName, commandName, overridePath);
     this.config        = result.config;
     this.commandConfig = result.commandConfig;
   }
 
   print(text: string): void {
-    process.stdout.write(text + "\n");
+    this.output.print(text);
   }
 
   printError(text: string): void {
-    process.stderr.write(text + "\n");
+    this.output.printError(text);
   }
 
   exit(code: number): never {
+    // Flush buffered JSON before exiting so commands that call runtime.exit()
+    // explicitly (e.g. after a successful operation) still emit their output.
+    this._flushJson?.();
     process.exit(code);
   }
 

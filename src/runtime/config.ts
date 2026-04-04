@@ -18,8 +18,9 @@ import { xdgConfigHome } from "./fs.ts";
 export async function loadConfig(
   cliName: string,
   commandName: string,
+  overridePath?: string,
 ): Promise<{ config: Record<string, unknown>; commandConfig: Record<string, unknown> }> {
-  const filePath = join(xdgConfigHome(), cliName, "config.toml");
+  const filePath = overridePath ?? join(xdgConfigHome(), cliName, "config.toml");
   const file = Bun.file(filePath);
 
   if (!(await file.exists())) {

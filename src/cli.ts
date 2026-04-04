@@ -333,7 +333,7 @@ async function dispatch(
   const runtime = new BasicRuntime(runtimeOpts);
 
   // Load config.toml (non-fatal — missing file is fine)
-  await runtime.loadConfig(config.name, runtimeOpts.commandName);
+  await runtime.loadConfig(config.name, runtimeOpts.commandName, globals.config);
 
   try {
     if (subcommand) {
@@ -348,6 +348,8 @@ async function dispatch(
         subcommands: toSummaries(subcommands),
       }));
     }
+    // Emit buffered JSON output (no-op when --json was not passed)
+    runtime.flushOutput();
   } catch (err) {
     // A prompt inside run() was cancelled with Ctrl+C or Escape.
     // Users who want different behaviour (use a default, skip a step) can
