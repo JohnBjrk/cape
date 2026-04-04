@@ -51,8 +51,8 @@ export async function loadConfig(
     merged = mergeDocuments(userDoc, localDoc);
   }
 
-  const rawConfig        = (merged[""] ?? {}) as Record<string, unknown>;
-  const rawCommandConfig = (merged[commandSection] ?? {}) as Record<string, unknown>;
+  const rawConfig        = merged as Record<string, unknown>;
+  const rawCommandConfig = (merged[commandSection] as Record<string, unknown>) ?? {};
 
   return {
     config:        applyDefaults(rawConfig,        options?.cliSchema),
@@ -85,7 +85,7 @@ async function findLocalConfig(cliName: string): Promise<TomlDocument> {
     dir = parent;
   }
 
-  return { "": {} };
+  return {};
 }
 
 // ---------------------------------------------------------------------------
@@ -94,24 +94,34 @@ async function findLocalConfig(cliName: string): Promise<TomlDocument> {
 
 async function readTomlFile(path: string): Promise<TomlDocument> {
   const file = Bun.file(path);
-  if (!(await file.exists())) return { "": {} };
+  if (!(await file.exists())) return {};
   try {
     return parseToml(await file.text());
   } catch {
-    return { "": {} };
+    return {};
   }
 }
 
 /**
- * Merges two TOML documents. `override` wins on a per-key basis within each
- * section — sections present only in `base` are preserved untouched.
+ * Merges two TOML documents. `override` wins on a per-key basis.
+ * Plain-object values (section tables) are shallow-merged so that keys
+ * present only in `base` are preserved.
  */
 function mergeDocuments(base: TomlDocument, override: TomlDocument): TomlDocument {
   const result: TomlDocument = { ...base };
-  for (const [section, entries] of Object.entries(override)) {
-    result[section] = { ...(base[section] ?? {}), ...entries };
+  for (const [key, value] of Object.entries(override)) {
+    const baseValue = result[key];
+    if (isPlainObject(value) && isPlainObject(baseValue)) {
+      result[key] = { ...baseValue, ...value };
+    } else {
+      result[key] = value;
+    }
   }
   return result;
+}
+
+function isPlainObject(v: unknown): v is Record<string, unknown> {
+  return v !== null && typeof v === "object" && !Array.isArray(v);
 }
 
 /**
@@ -135,6 +145,8 @@ function applyDefaults(
     if (field.type === "object") {
       const nested = (values[key] as Record<string, unknown> | undefined) ?? {};
       result[key] = applyDefaults(nested, field.fields);
+    } else if (field.type === "array") {
+      result[key] = values[key] !== undefined ? values[key] : (field.default ?? []);
     } else {
       result[key] = values[key] !== undefined ? values[key] : field.default;
     }

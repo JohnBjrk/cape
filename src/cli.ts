@@ -535,7 +535,7 @@ function initCommand(config: CliConfig): CommandDef {
         }
 
         for (const secret of secrets) {
-          const existing = (doc[""]?.[secret.key] as string | undefined);
+          const existing = (doc[secret.key] as string | undefined);
           if (secret.description) runtime.print(`  ${secret.description}`);
 
           let value: string;
@@ -549,8 +549,7 @@ function initCommand(config: CliConfig): CommandDef {
             throw err;
           }
 
-          if (!doc[""]) doc[""] = {};
-          doc[""]![secret.key] = value;
+          doc[secret.key] = value;
         }
 
         await runtime.fs.write(credPath, serializeToml(doc), 0o600);

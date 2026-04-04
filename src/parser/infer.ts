@@ -94,9 +94,7 @@ type InferConfigValue<F extends ConfigField> =
   F extends { type: "object"; fields: infer FS extends ConfigSchema }
     ? InferConfig<FS>
     : F extends { type: "array"; items: infer I extends ConfigField }
-      ? F extends { default: NonNullable<unknown> }
-        ? InferArrayItemType<I>[]
-        : InferArrayItemType<I>[] | undefined
+      ? InferArrayItemType<I>[]
       : F extends ConfigScalarField & { default: NonNullable<unknown> }
         ? ConfigBaseType<F["type"]>
         : F extends ConfigScalarField

@@ -43,7 +43,7 @@ export function createSecrets(cliName: string, commandName: string): SecretsInte
   return {
     async get(key) {
       const doc = await loadDoc();
-      const section = doc[commandName] ?? doc[""] ?? {};
+      const section = (doc[commandName] as Record<string, unknown> | undefined) ?? {};
       const value = section[key];
       return typeof value === "string" ? value : value !== undefined ? String(value) : undefined;
     },
@@ -51,14 +51,15 @@ export function createSecrets(cliName: string, commandName: string): SecretsInte
     async set(key, value) {
       const doc = await loadDoc();
       if (!doc[commandName]) doc[commandName] = {};
-      doc[commandName]![key] = value;
+      (doc[commandName] as Record<string, unknown>)[key] = value;
       await saveDoc(doc);
     },
 
     async delete(key) {
       const doc = await loadDoc();
-      if (doc[commandName]) {
-        delete doc[commandName]![key];
+      const section = doc[commandName] as Record<string, unknown> | undefined;
+      if (section) {
+        delete section[key];
         await saveDoc(doc);
       }
     },

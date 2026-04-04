@@ -19,52 +19,70 @@ import { tmpdir } from "node:os";
 describe("parseToml", () => {
   it("parses top-level string values", () => {
     const doc = parseToml(`name = "Alice"\nage = 30\n`);
-    expect(doc[""]!["name"]).toBe("Alice");
-    expect(doc[""]!["age"]).toBe(30);
+    expect(doc["name"]).toBe("Alice");
+    expect(doc["age"]).toBe(30);
   });
 
   it("parses boolean values", () => {
     const doc = parseToml(`enabled = true\ndisabled = false\n`);
-    expect(doc[""]!["enabled"]).toBe(true);
-    expect(doc[""]!["disabled"]).toBe(false);
+    expect(doc["enabled"]).toBe(true);
+    expect(doc["disabled"]).toBe(false);
   });
 
   it("parses section headers", () => {
     const doc = parseToml(`[mycommand]\ntoken = "secret"\n`);
-    expect(doc["mycommand"]!["token"]).toBe("secret");
+    expect((doc["mycommand"] as Record<string, unknown>)["token"]).toBe("secret");
   });
 
   it("parses top-level and section keys separately", () => {
     const src = `base_url = "https://example.com"\n\n[mycommand]\nformat = "json"\n`;
     const doc = parseToml(src);
-    expect(doc[""]!["base_url"]).toBe("https://example.com");
-    expect(doc["mycommand"]!["format"]).toBe("json");
+    expect(doc["base_url"]).toBe("https://example.com");
+    expect((doc["mycommand"] as Record<string, unknown>)["format"]).toBe("json");
   });
 
   it("skips comments and blank lines", () => {
     const doc = parseToml(`# a comment\n\nkey = "value"\n`);
-    expect(doc[""]!["key"]).toBe("value");
-    expect(Object.keys(doc[""]!)).toHaveLength(1);
+    expect(doc["key"]).toBe("value");
   });
 
   it("handles single-quoted strings without escaping", () => {
     const doc = parseToml(`path = 'C:\\Users\\john'\n`);
-    expect(doc[""]!["path"]).toBe("C:\\Users\\john");
+    expect(doc["path"]).toBe("C:\\Users\\john");
   });
 
   it("handles basic escape sequences in double-quoted strings", () => {
     const doc = parseToml(`msg = "hello\\nworld"\n`);
-    expect(doc[""]!["msg"]).toBe("hello\nworld");
+    expect(doc["msg"]).toBe("hello\nworld");
   });
 
   it("parses float values", () => {
     const doc = parseToml(`timeout = 3.14\n`);
-    expect(doc[""]!["timeout"]).toBeCloseTo(3.14);
+    expect(doc["timeout"]).toBeCloseTo(3.14);
   });
 
-  it("returns empty top-level section for empty input", () => {
+  it("returns empty document for empty input", () => {
     const doc = parseToml("");
-    expect(doc[""]).toEqual({});
+    expect(doc).toEqual({});
+  });
+
+  it("parses inline arrays", () => {
+    const doc = parseToml(`tags = ["a", "b", "c"]\n`);
+    expect(doc["tags"]).toEqual(["a", "b", "c"]);
+  });
+
+  it("parses inline tables", () => {
+    const doc = parseToml(`server = { host = "localhost", port = 8080 }\n`);
+    expect((doc["server"] as Record<string, unknown>)["host"]).toBe("localhost");
+    expect((doc["server"] as Record<string, unknown>)["port"]).toBe(8080);
+  });
+
+  it("parses arrays of tables", () => {
+    const doc = parseToml(`[[items]]\nname = "first"\n\n[[items]]\nname = "second"\n`);
+    const items = doc["items"] as Record<string, unknown>[];
+    expect(items).toHaveLength(2);
+    expect(items[0]!["name"]).toBe("first");
+    expect(items[1]!["name"]).toBe("second");
   });
 });
 
@@ -73,14 +91,14 @@ describe("serializeToml", () => {
     const original = `name = "Alice"\nage = 42\n`;
     const doc = parseToml(original);
     const out = serializeToml(doc);
-    expect(parseToml(out)[""]!["name"]).toBe("Alice");
-    expect(parseToml(out)[""]!["age"]).toBe(42);
+    expect(parseToml(out)["name"]).toBe("Alice");
+    expect(parseToml(out)["age"]).toBe(42);
   });
 
   it("round-trips sections", () => {
     const doc = parseToml(`[cmd]\ntoken = "abc"\n`);
     const out = serializeToml(doc);
-    expect(parseToml(out)["cmd"]!["token"]).toBe("abc");
+    expect((parseToml(out)["cmd"] as Record<string, unknown>)["token"]).toBe("abc");
   });
 });
 
