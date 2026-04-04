@@ -150,7 +150,7 @@ export function createCli(config: CliConfig, commands: CommandDef[] = []) {
         const words = argv.slice(2);
         const partial = words[cword] ?? "";
         const prevArgv = words.slice(0, cword);
-        const results = await resolveCompletions(allCommands, prevArgv, partial);
+        const results = await resolveCompletions(allCommands, prevArgv, partial, config.name);
         if (results.length > 0) process.stdout.write(results.join("\n") + "\n");
         return;
       }

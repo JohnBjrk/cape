@@ -201,7 +201,7 @@ PATH=/usr/bin:/bin myctl hello --name World  # works without cape or bun in PATH
 **Goal:** fix known gaps in completed phases before moving forward.
 
 - [x] **`--config` flag**: pass `globals.config` override path to `loadConfig()` in dispatch
-- [ ] **Completer caching**: filesystem cache (`~/.cache/<cli>/completions/`) — skip in-memory cache (no benefit: each completion is a separate process invocation)
+- [x] **Completer caching**: filesystem cache at `~/.cache/<cli>/completions/<hash>.json`, 5-min TTL; keyed by `Bun.hash(cliName + slotKey + ctx)`; written in background (non-blocking); static sources bypass cache
 - [x] **`cape run` / `cape build`**: refactor config loading to use shared `resolveName()` helper from `helpers.ts`
 - [x] **`--json` global flag**: `createJsonOutput` buffers all output; `flushOutput()` emits single JSON object after successful `command.run()`; 4-case shape (see `output.ts`)
 

@@ -1,6 +1,9 @@
 import type { ArgSchema, CompletionCtx, CompletionSource } from "../parser/types.ts";
 import type { CommandDef } from "../cli.ts";
 import { globalSchema, mergeSchemas } from "../parser/global-flags.ts";
+import { join } from "node:path";
+import { mkdir } from "node:fs/promises";
+import { xdgCacheHome } from "../runtime/fs.ts";
 
 type FlagDef = NonNullable<ArgSchema["flags"]>[string];
 
@@ -11,6 +14,10 @@ type CompletionSlot =
   | { kind: "flag-value"; flagName: string; source: CompletionSource | undefined; ctx: CompletionCtx }
   | { kind: "positional"; index: number; source: CompletionSource | undefined; ctx: CompletionCtx };
 
+const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+
+interface CacheEntry { expires: number; values: string[] }
+
 /**
  * Given the tokens already on the command line (before the cursor) and the
  * partial word being completed, returns completion candidates.
@@ -18,14 +25,16 @@ type CompletionSlot =
  * @param commands  All available commands (static + loaded plugins)
  * @param argv      Tokens already typed, NOT including the partial word
  * @param partial   The word currently being completed (may be "")
+ * @param cliName   CLI name used to scope the on-disk cache directory
  */
 export async function resolveCompletions(
   commands: CommandDef[],
   argv: string[],
   partial: string,
+  cliName?: string,
 ): Promise<string[]> {
   const slot = computeSlot(commands, argv, partial);
-  return fetchCandidates(slot, partial, commands);
+  return fetchCandidates(slot, partial, commands, cliName);
 }
 
 // ---------------------------------------------------------------------------
@@ -109,6 +118,7 @@ async function fetchCandidates(
   slot: CompletionSlot,
   partial: string,
   commands: CommandDef[],
+  cliName?: string,
 ): Promise<string[]> {
   switch (slot.kind) {
     case "command":
@@ -127,24 +137,69 @@ async function fetchCandidates(
       return filterPrefix(flagNameCandidates(slot.schema, slot.provided), partial);
 
     case "flag-value":
-      return filterPrefix(await fetchSource(slot.source, slot.ctx), partial);
+      return filterPrefix(await fetchSource(slot.source, slot.ctx, `flag:${slot.flagName}`, cliName), partial);
 
     case "positional":
-      return filterPrefix(await fetchSource(slot.source, slot.ctx), partial);
+      return filterPrefix(await fetchSource(slot.source, slot.ctx, `pos:${slot.index}`, cliName), partial);
   }
 }
 
 async function fetchSource(
   source: CompletionSource | undefined,
   ctx: CompletionCtx,
+  slotKey: string,
+  cliName?: string,
 ): Promise<string[]> {
   if (!source) return [];
   if (source.type === "static") return source.values;
+
+  // Dynamic source — check filesystem cache first
+  const cacheFile = cliName ? completionCachePath(cliName, slotKey, ctx) : undefined;
+  if (cacheFile) {
+    const cached = await readCache(cacheFile);
+    if (cached) return cached;
+  }
+
+  let values: string[];
   try {
-    return await withTimeout(source.fetch(ctx), source.timeoutMs ?? 5000);
+    values = await withTimeout(source.fetch(ctx), source.timeoutMs ?? 5000);
   } catch {
     return [];
   }
+
+  if (cacheFile) {
+    // Write cache in background — don't block the completion response
+    writeCache(cacheFile, values).catch(() => {});
+  }
+
+  return values;
+}
+
+// ---------------------------------------------------------------------------
+// Filesystem cache helpers (Bun-native)
+// ---------------------------------------------------------------------------
+
+function completionCachePath(cliName: string, slotKey: string, ctx: CompletionCtx): string {
+  const key = `${cliName}:${slotKey}:${JSON.stringify(ctx)}`;
+  const hash = Bun.hash(key).toString(16);
+  return join(xdgCacheHome(), cliName, "completions", `${hash}.json`);
+}
+
+async function readCache(path: string): Promise<string[] | undefined> {
+  const f = Bun.file(path);
+  if (!(await f.exists())) return undefined;
+  try {
+    const entry = await f.json() as CacheEntry;
+    return entry.expires > Date.now() ? entry.values : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+async function writeCache(path: string, values: string[]): Promise<void> {
+  await mkdir(join(path, ".."), { recursive: true });
+  const entry: CacheEntry = { expires: Date.now() + CACHE_TTL_MS, values };
+  await Bun.write(path, JSON.stringify(entry));
 }
 
 /**
