@@ -287,7 +287,6 @@ function pluginIndexTemplate(cliName: string, version: string, schema: ConfigSch
     `  Runtime,`,
     `  InferConfig,`,
     `} from "./cape";`,
-    `export { HttpError } from "./cape";`,
     ``,
     `// ---------------------------------------------------------------------------`,
     `// Global config — shape of runtime.config in plugins for ${cliName}`,

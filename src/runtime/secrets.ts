@@ -13,6 +13,15 @@ export interface SecretsInterface {
   set(key: string, value: string): Promise<void>;
   /** Delete a secret value scoped to the current command. */
   delete(key: string): Promise<void>;
+  /**
+   * Access secrets stored by a specific command section.
+   * Use this to read credentials written by another command — for example,
+   * reading an auth token stored by the `login` command:
+   *
+   * @example
+   * const token = await runtime.secrets.from("login").get("token");
+   */
+  from(section: string): Omit<SecretsInterface, "from">;
 }
 
 // ---------------------------------------------------------------------------
@@ -40,46 +49,65 @@ export function createSecrets(cliName: string, commandName: string): SecretsInte
     await chmod(filePath, 0o600);
   }
 
-  return {
-    async get(key) {
-      const doc = await loadDoc();
-      const section = (doc[commandName] as Record<string, unknown> | undefined) ?? {};
-      const value = section[key];
-      return typeof value === "string" ? value : value !== undefined ? String(value) : undefined;
-    },
-
-    async set(key, value) {
-      const doc = await loadDoc();
-      if (!doc[commandName]) doc[commandName] = {};
-      (doc[commandName] as Record<string, unknown>)[key] = value;
-      await saveDoc(doc);
-    },
-
-    async delete(key) {
-      const doc = await loadDoc();
-      const section = doc[commandName] as Record<string, unknown> | undefined;
-      if (section) {
-        delete section[key];
+  function scopedTo(section: string): SecretsInterface {
+    return {
+      async get(key) {
+        const doc = await loadDoc();
+        const sec = (doc[section] as Record<string, unknown> | undefined) ?? {};
+        const value = sec[key];
+        return typeof value === "string" ? value : value !== undefined ? String(value) : undefined;
+      },
+      async set(key, value) {
+        const doc = await loadDoc();
+        if (!doc[section]) doc[section] = {};
+        (doc[section] as Record<string, unknown>)[key] = value;
         await saveDoc(doc);
-      }
-    },
-  };
+      },
+      async delete(key) {
+        const doc = await loadDoc();
+        const sec = doc[section] as Record<string, unknown> | undefined;
+        if (sec) {
+          delete sec[key];
+          await saveDoc(doc);
+        }
+      },
+      from(other) { return scopedTo(other); },
+    };
+  }
+
+  return scopedTo(commandName);
 }
 
 // ---------------------------------------------------------------------------
 // Mock implementation
 // ---------------------------------------------------------------------------
 
-/** Mock SecretsInterface backed by an in-memory Map. */
+/**
+ * Mock SecretsInterface backed by an in-memory Map.
+ * Default `get/set/delete` use flat keys. Cross-section access via `from(section)`
+ * uses `"section/key"` prefixed keys so tests can pre-populate them:
+ *
+ * @example
+ * const runtime = new MockRuntime({
+ *   secrets: { "login/token": "abc123" },
+ * });
+ * // runtime.secrets.from("login").get("token") → "abc123"
+ */
 export function createMockSecrets(initial: Record<string, string> = {}): SecretsInterface & {
   store: Map<string, string>;
 } {
   const store = new Map<string, string>(Object.entries(initial));
 
-  return {
-    store,
-    async get(key)        { return store.get(key); },
-    async set(key, value) { store.set(key, value); },
-    async delete(key)     { store.delete(key); },
-  };
+  function scopedTo(prefix: string): SecretsInterface {
+    const k = (key: string) => prefix ? `${prefix}/${key}` : key;
+    return {
+      async get(key)        { return store.get(k(key)); },
+      async set(key, value) { store.set(k(key), value); },
+      async delete(key)     { store.delete(k(key)); },
+      from(section)         { return scopedTo(section); },
+    };
+  }
+
+  const base = scopedTo("");
+  return { ...base, store };
 }
