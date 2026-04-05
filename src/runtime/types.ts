@@ -4,6 +4,7 @@ import type { FsInterface } from "./fs.ts";
 import type { StdinInterface } from "./stdin.ts";
 import type { LogInterface } from "./log.ts";
 import type { SecretsInterface } from "./secrets.ts";
+import type { PromptInterface } from "../prompt/types.ts";
 
 export interface Runtime {
   // ---------------------------------------------------------------------------
@@ -64,4 +65,10 @@ export interface Runtime {
 
   /** Command-specific section from config.toml (`[command-name]`). */
   commandConfig: Record<string, unknown>;
+
+  /**
+   * Interactive prompt helpers — pre-bound to this command's AbortSignal.
+   * No separate imports needed; use `runtime.prompt.text(...)` etc.
+   */
+  prompt: PromptInterface;
 }

@@ -6,6 +6,7 @@ import { createMockStdin, type StdinInterface } from "./stdin.ts";
 import { createMockLog, type LogInterface, type LogCall } from "./log.ts";
 import { createMockSignalManager } from "./signal.ts";
 import { createMockSecrets, type SecretsInterface } from "./secrets.ts";
+import { NonTtyError, PromptCancelledError, type PromptInterface } from "../prompt/types.ts";
 
 interface MockRuntimeOptions {
   args?: Partial<ParsedArgs>;
@@ -31,6 +32,15 @@ export class MockRuntime implements Runtime {
   secrets: SecretsInterface;
   config: Record<string, unknown>;
   commandConfig: Record<string, unknown>;
+  prompt: PromptInterface = {
+    text:         () => Promise.reject(new NonTtyError()),
+    confirm:      () => Promise.reject(new NonTtyError()),
+    select:       () => Promise.reject(new NonTtyError()),
+    multiSelect:  () => Promise.reject(new NonTtyError()),
+    autocomplete: () => Promise.reject(new NonTtyError()),
+    NonTtyError,
+    PromptCancelledError,
+  };
 
   // Convenience accessors for assertions
   readonly printed: string[] = [];

@@ -9,6 +9,8 @@ import { createLog, type LogInterface } from "./log.ts";
 import { createSignalManager, type SignalManager } from "./signal.ts";
 import { createSecrets, type SecretsInterface } from "./secrets.ts";
 import { loadConfig, type LoadConfigOptions } from "./config.ts";
+import { text, select, confirm, multiSelect, autocomplete } from "../prompt/index.ts";
+import { NonTtyError, PromptCancelledError, type PromptInterface } from "../prompt/types.ts";
 
 export interface BasicRuntimeOptions {
   args: ParsedArgs;
@@ -35,6 +37,7 @@ export class BasicRuntime implements Runtime {
   secrets: SecretsInterface;
   config: Record<string, unknown> = {};
   commandConfig: Record<string, unknown> = {};
+  prompt: PromptInterface;
 
   private _signalManager: SignalManager;
   private _exitHandlers: Array<() => void | Promise<void>> = [];
@@ -65,6 +68,16 @@ export class BasicRuntime implements Runtime {
 
     this._signalManager = createSignalManager();
     this.signal = this._signalManager.signal;
+
+    this.prompt = {
+      text:         (opts) => text({ ...opts, signal: this.signal }),
+      confirm:      (opts) => confirm({ ...opts, signal: this.signal }),
+      select:       (opts) => select({ ...opts, signal: this.signal }),
+      multiSelect:  (opts) => multiSelect({ ...opts, signal: this.signal }),
+      autocomplete: (opts) => autocomplete({ ...opts, signal: this.signal }),
+      NonTtyError,
+      PromptCancelledError,
+    };
   }
 
   /** Call after successful command.run() to emit buffered JSON (if --json). */

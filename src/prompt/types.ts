@@ -86,3 +86,31 @@ export interface AutocompletePromptOptions {
   debounceMs?: number;
   signal?: AbortSignal;
 }
+
+// ---------------------------------------------------------------------------
+// Prompt interface (exposed on Runtime.prompt)
+// ---------------------------------------------------------------------------
+
+/**
+ * All interactive prompt methods, pre-bound to the command's AbortSignal.
+ * Access via `runtime.prompt` — no separate imports needed.
+ *
+ * All methods throw NonTtyError when stdin is not a TTY, and
+ * PromptCancelledError when the user presses Ctrl+C or Escape.
+ */
+export interface PromptInterface {
+  /** Free-form text input. */
+  text(options: Omit<TextPromptOptions, "signal">): Promise<string>;
+  /** Yes/no confirmation. */
+  confirm(options: Omit<ConfirmPromptOptions, "signal">): Promise<boolean>;
+  /** Single choice from a list. */
+  select(options: Omit<SelectPromptOptions, "signal">): Promise<string>;
+  /** Multiple choices from a list. */
+  multiSelect(options: Omit<MultiSelectPromptOptions, "signal">): Promise<string[]>;
+  /** Text input with live-filtered suggestions (static list or async fetch). */
+  autocomplete(options: Omit<AutocompletePromptOptions, "signal">): Promise<string>;
+  /** Thrown when a prompt is invoked outside a TTY. */
+  NonTtyError: typeof NonTtyError;
+  /** Thrown when the user cancels a prompt (Ctrl+C or Escape). */
+  PromptCancelledError: typeof PromptCancelledError;
+}
