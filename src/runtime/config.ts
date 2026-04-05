@@ -1,8 +1,66 @@
-import { join } from "node:path";
+import { join, isAbsolute } from "node:path";
 import { existsSync } from "node:fs";
 import { parseToml, type TomlDocument } from "./toml.ts";
-import { xdgConfigHome } from "./fs.ts";
+import { xdgConfigHome, expandHome } from "./fs.ts";
 import type { ConfigSchema } from "../parser/types.ts";
+
+// ---------------------------------------------------------------------------
+// Framework config (early read — before per-command dispatch)
+// ---------------------------------------------------------------------------
+
+/**
+ * Returns the directory containing the repo-local `.{cliName}.toml` config
+ * file, found by walking up from cwd to the git root. Returns null if not found.
+ */
+export async function findLocalConfigDir(cliName: string): Promise<string | null> {
+  const filename = `.${cliName}.toml`;
+  let dir = process.cwd();
+  while (true) {
+    if (existsSync(join(dir, filename))) return dir;
+    if (existsSync(join(dir, ".git"))) break;
+    const parent = join(dir, "..");
+    if (parent === dir) break;
+    dir = parent;
+  }
+  return null;
+}
+
+/**
+ * Reads the framework-reserved `[cliName]` section from the merged config
+ * files. Used at CLI startup for framework-level settings (e.g. pluginDirs).
+ * The section is always stripped from runtime.config so it never leaks to commands.
+ */
+export async function readFrameworkConfig(cliName: string): Promise<Record<string, unknown>> {
+  const userConfigDir = join(xdgConfigHome(), cliName);
+  const localConfigDir = await findLocalConfigDir(cliName);
+
+  const [userDoc, localDoc] = await Promise.all([
+    readTomlFile(join(userConfigDir, "config.toml")),
+    localConfigDir
+      ? readTomlFile(join(localConfigDir, `.${cliName}.toml`))
+      : Promise.resolve({} as TomlDocument),
+  ]);
+
+  // Resolve pluginDirs to absolute paths relative to each config file's directory,
+  // so that relative entries like "plugins" work from any cwd (including compiled binaries).
+  resolveFrameworkPluginDirs(userDoc, cliName, userConfigDir);
+  if (localConfigDir) resolveFrameworkPluginDirs(localDoc, cliName, localConfigDir);
+
+  const merged = mergeDocuments(userDoc, localDoc);
+  return (merged[cliName] as Record<string, unknown>) ?? {};
+}
+
+function resolveFrameworkPluginDirs(doc: TomlDocument, cliName: string, baseDir: string): void {
+  const section = doc[cliName];
+  if (!isPlainObject(section)) return;
+  const dirs = section["pluginDirs"];
+  if (!Array.isArray(dirs)) return;
+  section["pluginDirs"] = (dirs as unknown[]).map((d) => {
+    if (typeof d !== "string") return d;
+    const expanded = expandHome(d);
+    return isAbsolute(expanded) ? expanded : join(baseDir, expanded);
+  });
+}
 
 // ---------------------------------------------------------------------------
 // Public API
@@ -51,7 +109,8 @@ export async function loadConfig(
     merged = mergeDocuments(userDoc, localDoc);
   }
 
-  const rawConfig        = merged as Record<string, unknown>;
+  // Strip the framework-reserved [cliName] section — never exposed to commands.
+  const { [cliName]: _framework, ...rawConfig } = merged;
   const rawCommandConfig = (merged[commandSection] as Record<string, unknown>) ?? {};
 
   return {
@@ -70,22 +129,9 @@ export async function loadConfig(
  * Returns an empty document if no file is found.
  */
 async function findLocalConfig(cliName: string): Promise<TomlDocument> {
-  const filename = `.${cliName}.toml`;
-  let dir = process.cwd();
-
-  while (true) {
-    const candidate = join(dir, filename);
-    if (existsSync(candidate)) {
-      return readTomlFile(candidate);
-    }
-    // Stop at git root
-    if (existsSync(join(dir, ".git"))) break;
-    const parent = join(dir, "..");
-    if (parent === dir) break; // filesystem root
-    dir = parent;
-  }
-
-  return {};
+  const dir = await findLocalConfigDir(cliName);
+  if (!dir) return {};
+  return readTomlFile(join(dir, `.${cliName}.toml`));
 }
 
 // ---------------------------------------------------------------------------

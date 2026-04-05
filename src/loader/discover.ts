@@ -2,12 +2,17 @@ import { join, dirname } from "node:path";
 import { readdir } from "node:fs/promises";
 import type { DiscoveredPlugin, MinimalManifest } from "./types.ts";
 
+export interface DiscoverOptions {
+  /** When true, disabled plugins are included in results. Default: false. */
+  includeDisabled?: boolean;
+}
+
 /**
  * Recursively scans `dirs` for *.plugin.toml files and returns all valid,
  * enabled plugins. Directories that don't exist are silently skipped.
  * Malformed manifests are warned about and skipped.
  */
-export async function discoverPlugins(dirs: string[]): Promise<DiscoveredPlugin[]> {
+export async function discoverPlugins(dirs: string[], opts?: DiscoverOptions): Promise<DiscoveredPlugin[]> {
   const results: DiscoveredPlugin[] = [];
   const seen = new Set<string>(); // deduplicate by canonical command name
 
@@ -16,7 +21,7 @@ export async function discoverPlugins(dirs: string[]): Promise<DiscoveredPlugin[
     for (const manifestPath of manifestPaths) {
       const manifest = await parseManifest(manifestPath);
       if (!manifest) continue;
-      if (!manifest.enabled) continue;
+      if (!manifest.enabled && !opts?.includeDisabled) continue;
       if (seen.has(manifest.name)) continue; // first dir wins
 
       seen.add(manifest.name);

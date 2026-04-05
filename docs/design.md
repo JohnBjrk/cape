@@ -371,6 +371,166 @@ The backwards compatibility integration tests for the dropped version are remove
 
 -----
 
+## Plugin Management
+
+### Users and Command Types
+
+Two distinct users interact with a Cape-based CLI:
+
+| User | Description |
+|---|---|
+| **Product User** | Builds and maintains `mycli`. Works with `cape` CLI. Adds product commands before shipping. |
+| **End User** | Uses `mycli`. Adds plugin commands to extend it. Never needs `cape` installed. |
+
+Three types of commands exist at runtime:
+
+| Type | Created by | Discovery |
+|---|---|---|
+| **Built-in** | Cape framework (us) | Always present, injected automatically |
+| **Product command** | Product User, via `cape command add` | Compiled into the binary |
+| **Plugin command** | End User | Auto-discovered from configured directories |
+
+A key constraint: **End Users must never need to know about or install `cape`**. Everything they need — plugin scaffolding, plugin listing — is built into `mycli` itself.
+
+---
+
+### Framework Config Section
+
+Framework settings (not product config, not command config) live under a TOML section named after the CLI itself. This section is reserved and never exposed via `runtime.config` or `runtime.commandConfig`.
+
+```toml
+# .mycli.toml  or  ~/.config/mycli/config.toml
+
+# End User's product-level config (declared in cli.config.ts)
+apiUrl = "https://api.example.com"
+
+# End User's command config
+[deploy]
+env = "staging"
+
+# Framework settings — section name matches the CLI name
+[mycli]
+pluginDirs = ["~/shared-plugins", "./extra-commands"]
+```
+
+`pluginDirs` paths under `[mycli]` are **relative to the config file that declares them**. The local `.mycli.toml` is resolved during the config walk (cwd up to `.git`); the user config is at `~/.config/mycli/config.toml`. Tilde expansion is applied to paths starting with `~`.
+
+This section is read early — before plugin discovery — by a lightweight `readFrameworkConfig(cliName)` call that shares the same file-reading and merge logic as the main config loader.
+
+---
+
+### Built-in Commands
+
+The framework injects a `plugin` command group into every Cape-created CLI automatically, the same way `--help` and `--version` are automatic. `plugin` is a reserved command name; a Product User cannot define a static command with that name.
+
+#### `mycli plugin list`
+
+Displays all currently discovered plugins — name, description, source directory, enabled status. Useful for End Users debugging why a plugin isn't loading.
+
+```
+Plugins (3 found):
+
+  deploy-helper    Deploy shortcuts              ./commands/deploy-helper/
+  audit            Security audit tool           ~/shared-plugins/audit/
+  legacy-export    Export to legacy format       ./extra-commands/legacy-export/    [disabled]
+```
+
+Re-runs discovery on each invocation so it always reflects the current state of the filesystem.
+
+#### `mycli plugin create`
+
+Scaffolds a new plugin interactively. Prompts for name and description, then presents all available plugin locations as a selection:
+
+**Location options offered:**
+
+1. The default project-local dir (`./commands/`) — always included if a `.mycli.toml` is found in the project
+2. Any additional `pluginDirs` declared in `.mycli.toml` — listed with their resolved paths
+3. The user-level dir (`~/.config/mycli/plugins/`) — always included as a fallback
+
+All locations from `.mycli.toml` are shown with their paths resolved relative to where `.mycli.toml` was found (the project root). The user-level dir is the only option when run outside a project.
+
+**What gets created:**
+
+```
+<pluginDir>/<name>/
+  <name>.plugin.toml
+  <name>.ts
+```
+
+**Relative import path for repo-local plugins:**
+
+For plugin locations resolved from `.mycli.toml`, `cli.config.ts` lives in the same directory as `.mycli.toml`. The import path is computed as:
+
+```ts
+const relativeToRoot = path.relative(pluginLocation, tomlDir);
+const importPath = `${relativeToRoot}/cli.config.ts`;
+// e.g. ./commands/my-plugin/ → ../../cli.config.ts
+// e.g. ./plugins/tools/my-plugin/ → ../../../cli.config.ts
+```
+
+This gives repo-local plugins typed access to `runtime.config` and `runtime.commandConfig` via the project's `defineCommand` export.
+
+**Template for repo-local plugin:**
+
+```ts
+// commands/my-plugin/my-plugin.ts
+import { defineCommand } from "../../cli.config.ts";   // path varies by depth
+
+export default defineCommand({
+  name: "my-plugin",
+  description: "...",
+  schema: {
+    flags: {
+      // example: { type: "string", description: "An example flag" },
+    },
+  },
+  async run(args, runtime) {
+    runtime.print("Running my-plugin...");
+  },
+});
+```
+
+**Template for user-level plugin** (`~/.config/mycli/plugins/<name>/`):
+
+```ts
+// Uses untyped defineCommand — runtime.config is Record<string, unknown>
+import { defineCommand } from "cape";
+
+export default defineCommand({
+  name: "my-plugin",
+  description: "...",
+  async run(args, runtime) {
+    runtime.print("Running my-plugin...");
+  },
+});
+```
+
+After creation, the command prints: *"No registration needed — this plugin is auto-discovered the next time you run mycli."*
+
+---
+
+### Typed Config for Plugin Commands
+
+**Repo-local plugins:** Import `defineCommand` from `../../cli.config.ts` (generated path). Gets fully typed `runtime.config` from the Product User's `globalConfig` schema, and typed `runtime.commandConfig` from the plugin's own `config` field. Zero extra setup.
+
+**User-level plugins:** Untyped in Phase 1 — `runtime.config` is `Record<string, unknown>`. Typed access for user-level plugins requires distributing type definitions from the compiled binary, which is deferred to a later phase alongside framework versioning work.
+
+---
+
+### Phase 1 Implementation Steps
+
+| # | Change | Files |
+|---|---|---|
+| 1 | Strip `[cliName]` from `rawConfig` so framework section never leaks into `runtime.config` | `src/runtime/config.ts` |
+| 2 | `readFrameworkConfig(cliName)` — lightweight early read of the `[cliName]` section, shared helpers with main config loader | `src/runtime/config.ts` |
+| 3 | Use `readFrameworkConfig` in `resolveCommands()` to extend plugin dirs; add `expandHome` helper | `src/cli.ts` |
+| 4 | `plugin list` and `plugin create` built-in commands; `plugin create` computes relative import path from plugin location to `cli.config.ts` | `src/builtin/plugin.ts` (new) |
+| 5 | Inject built-in `plugin` command in `resolveCommands()`; reserve the name | `src/cli.ts` |
+| 6 | Update `cape init` template — add commented `[name]` section example | `cape-cli/commands/init.ts` |
+| 7 | Tests for framework config stripping, `readFrameworkConfig`, plugin list, plugin create file output | `src/runtime/runtime.test.ts`, `src/builtin/plugin.test.ts` (new) |
+
+-----
+
 ## Global Flags
 
 These flags are available on every command and subcommand without any declaration in the command's schema. The framework handles them before dispatching to the command — commands get their effects for free.

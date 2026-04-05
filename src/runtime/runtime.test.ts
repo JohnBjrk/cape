@@ -7,10 +7,10 @@ import { createMockLog } from "./log.ts";
 import { createMockSecrets } from "./secrets.ts";
 import { createMockSignalManager } from "./signal.ts";
 import { MockRuntime } from "./mock.ts";
-import { loadConfig } from "./config.ts";
-import { mkdtemp, rm, writeFile, mkdir } from "node:fs/promises";
+import { loadConfig, readFrameworkConfig, findLocalConfigDir } from "./config.ts";
+import { mkdtemp, rm, writeFile, mkdir, realpath } from "node:fs/promises";
 import { join } from "node:path";
-import { tmpdir } from "node:os";
+import { tmpdir, homedir } from "node:os";
 
 // ---------------------------------------------------------------------------
 // TOML parser
@@ -499,5 +499,130 @@ describe("loadConfig", () => {
     // Passing "deploy" (parent command name) even for a deploy/staging subcommand
     const result = await loadConfig("myctl", "deploy", { overridePath: cfgPath });
     expect(result.commandConfig.timeout).toBe(120);
+  });
+
+  it("strips [cliName] framework section from runtime.config", async () => {
+    const cfgPath = join(tmp, "config.toml");
+    await writeFile(cfgPath, [
+      'apiUrl = "https://api.example.com"',
+      "[myctl]",
+      'pluginDirs = ["~/plugins"]',
+    ].join("\n"));
+
+    const result = await loadConfig("myctl", "deploy", { overridePath: cfgPath });
+    expect(result.config.apiUrl).toBe("https://api.example.com");
+    expect(result.config["myctl"]).toBeUndefined();
+  });
+});
+
+describe("readFrameworkConfig", () => {
+  let tmp: string;
+  let origCwd: string;
+  let origXdg: string | undefined;
+
+  beforeEach(async () => {
+    tmp = await mkdtemp(join(tmpdir(), "cape-fw-config-test-"));
+    origCwd = process.cwd();
+    origXdg = process.env.XDG_CONFIG_HOME;
+    process.env.XDG_CONFIG_HOME = join(tmp, "config");
+  });
+
+  afterEach(async () => {
+    process.chdir(origCwd);
+    await rm(tmp, { recursive: true, force: true });
+    if (origXdg === undefined) delete process.env.XDG_CONFIG_HOME;
+    else process.env.XDG_CONFIG_HOME = origXdg;
+  });
+
+  it("returns pluginDirs from local config", async () => {
+    process.chdir(tmp);
+    await writeFile(join(tmp, ".myctl.toml"), [
+      "[myctl]",
+      'pluginDirs = ["./extra-plugins", "~/shared"]',
+    ].join("\n"));
+
+    const realTmp = await realpath(tmp);
+    const cfg = await readFrameworkConfig("myctl");
+    // Paths should be resolved to absolute (relative to config file dir, ~ to homedir)
+    expect(cfg["pluginDirs"]).toEqual([
+      join(realTmp, "extra-plugins"),
+      join(homedir(), "shared"),
+    ]);
+  });
+
+  it("merges local over user framework config", async () => {
+    const userCfgDir = join(tmp, "config", "myctl");
+    await mkdir(userCfgDir, { recursive: true });
+    await writeFile(join(userCfgDir, "config.toml"), [
+      "[myctl]",
+      'pluginDirs = ["~/user-plugins"]',
+    ].join("\n"));
+
+    process.chdir(tmp);
+    await writeFile(join(tmp, ".myctl.toml"), [
+      "[myctl]",
+      'pluginDirs = ["./local-plugins"]',
+    ].join("\n"));
+
+    const realTmp = await realpath(tmp);
+    // Local wins; path resolved relative to local config file's directory
+    const cfg = await readFrameworkConfig("myctl");
+    expect(cfg["pluginDirs"]).toEqual([join(realTmp, "local-plugins")]);
+  });
+
+  it("returns empty object when no config files exist", async () => {
+    process.chdir(tmp);
+    const cfg = await readFrameworkConfig("myctl");
+    expect(cfg).toEqual({});
+  });
+});
+
+describe("findLocalConfigDir", () => {
+  let tmp: string;
+  let origCwd: string;
+
+  beforeEach(async () => {
+    tmp = await mkdtemp(join(tmpdir(), "cape-local-dir-test-"));
+    origCwd = process.cwd();
+  });
+
+  afterEach(async () => {
+    process.chdir(origCwd);
+    await rm(tmp, { recursive: true, force: true });
+  });
+
+  it("finds config in current directory", async () => {
+    await writeFile(join(tmp, ".myctl.toml"), "");
+    process.chdir(tmp);
+    const found = await findLocalConfigDir("myctl");
+    expect(found).not.toBeNull();
+    // Normalize for macOS symlinks (/tmp → /private/tmp)
+    expect(await realpath(found!)).toBe(await realpath(tmp));
+  });
+
+  it("finds config by walking up", async () => {
+    await writeFile(join(tmp, ".myctl.toml"), "");
+    const sub = join(tmp, "a", "b");
+    await mkdir(sub, { recursive: true });
+    process.chdir(sub);
+    const found = await findLocalConfigDir("myctl");
+    expect(found).not.toBeNull();
+    expect(await realpath(found!)).toBe(await realpath(tmp));
+  });
+
+  it("stops walk at .git boundary", async () => {
+    await mkdir(join(tmp, ".git"), { recursive: true });
+    const sub = join(tmp, "subdir");
+    await mkdir(sub, { recursive: true });
+    process.chdir(sub);
+    // No .myctl.toml between sub and .git
+    expect(await findLocalConfigDir("myctl")).toBeNull();
+  });
+
+  it("returns null when no config file found", async () => {
+    // Use a dir that has a .git so the walk stops immediately
+    await mkdir(join(tmp, ".git"), { recursive: true });
+    process.chdir(tmp);
+    expect(await findLocalConfigDir("myctl")).toBeNull();
   });
 });

@@ -121,6 +121,20 @@ export default defineConfig({
 // Import defineCommand / defineSubcommand from here instead of "cape" to get
 // runtime.config typed from the schema above.
 export const { defineCommand, defineSubcommand } = typedWith<typeof globalConfig>();
+
+// ---------------------------------------------------------------------------
+// Config file reference (.${name}.toml or ~/.config/${name}/config.toml)
+// ---------------------------------------------------------------------------
+//
+// Top-level keys mirror the globalConfig schema above.
+//
+// Framework settings live under [${name}] — reserved, never exposed to commands:
+//   [${name}]
+//   pluginDirs = ["./extra-plugins", "~/shared-plugins"]
+//
+// Command config lives under the command name:
+//   [my-command]
+//   someOption = "value"
 `;
 }
 

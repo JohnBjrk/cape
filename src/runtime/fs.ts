@@ -162,3 +162,10 @@ export function xdgDataHome(): string {
 export function xdgCacheHome(): string {
   return process.env.XDG_CACHE_HOME ?? join(homedir(), ".cache");
 }
+
+/** Expands a leading `~/` or bare `~` to the user's home directory. */
+export function expandHome(p: string): string {
+  if (p === "~") return homedir();
+  if (p.startsWith("~/")) return join(homedir(), p.slice(2));
+  return p;
+}

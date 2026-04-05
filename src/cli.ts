@@ -7,6 +7,8 @@ import { globalSchema, mergeSchemas, extractGlobalFlags } from "./parser/global-
 import { renderHelp } from "./help/render.ts";
 import { BasicRuntime, type BasicRuntimeOptions } from "./runtime/basic.ts";
 import { discoverPlugins, loadPlugin } from "./loader/index.ts";
+import { readFrameworkConfig } from "./runtime/config.ts";
+import { createBuiltinCommands } from "./builtin/index.ts";
 import { resolveCompletions } from "./completion/resolve.ts";
 import { fromSchema, promptedToArgv } from "./prompt/from-schema.ts";
 import { text } from "./prompt/text.ts";
@@ -242,31 +244,49 @@ export function createCli(config: CliConfig, commands: CommandDef[] = []) {
   };
 }
 
+/** Reserved built-in command names — static/plugin commands cannot use these. */
+const RESERVED_NAMES = new Set(["plugin"]);
+
 /**
- * Merges statically defined commands with plugins discovered from disk.
- * Static commands take priority — a plugin with the same name as a static
- * command is silently skipped.
+ * Merges statically defined commands with plugins discovered from disk, then
+ * appends built-in commands at lowest priority. Priority: static > plugin > built-in.
+ * Static commands that collide with reserved names log a warning.
  */
 async function resolveCommands(
   config: CliConfig,
   staticCommands: CommandDef[],
 ): Promise<CommandDef[]> {
-  const staticNames = new Set(staticCommands.map((c) => c.name));
-  const dirs = defaultPluginDirs(config.name).concat(config.pluginDirs ?? []);
-  const discovered = await discoverPlugins(dirs);
+  for (const cmd of staticCommands) {
+    if (RESERVED_NAMES.has(cmd.name)) {
+      console.warn(`[cape] Warning: "${cmd.name}" is a reserved built-in command name and will shadow the built-in.`);
+    }
+  }
 
+  const staticNames = new Set(staticCommands.map((c) => c.name));
+
+  // Read pluginDirs from [cliName] section in config files
+  const frameworkCfg = await readFrameworkConfig(config.name);
+  const tomlPluginDirs = (frameworkCfg["pluginDirs"] as string[] | undefined) ?? [];
+  const dirs = defaultPluginDirs(config.name).concat(config.pluginDirs ?? []).concat(tomlPluginDirs);
+
+  const discovered = await discoverPlugins(dirs);
   const pluginCommands: CommandDef[] = [];
   for (const plugin of discovered) {
     if (staticNames.has(plugin.manifest.name)) continue; // static wins
     try {
-      const cmd = await loadPlugin(plugin, "run"); // mode is set per-dispatch in future
+      const cmd = await loadPlugin(plugin, "run");
       pluginCommands.push(cmd);
     } catch (err) {
       console.warn(`[cape] Failed to load plugin "${plugin.manifest.name}": ${err}`);
     }
   }
 
-  return [...staticCommands, ...pluginCommands];
+  // Built-ins fill any name not already taken by static or plugin commands
+  const takenNames = new Set([...staticNames, ...pluginCommands.map((c) => c.name)]);
+  const builtins = createBuiltinCommands(config.name, config.pluginDirs ?? [], config.version ?? "0.0.0", config.config ?? {})
+    .filter((b) => !takenNames.has(b.name));
+
+  return [...staticCommands, ...pluginCommands, ...builtins];
 }
 
 function defaultPluginDirs(cliName: string): string[] {
