@@ -5,6 +5,7 @@ import type { StdinInterface } from "./stdin.ts";
 import type { LogInterface } from "./log.ts";
 import type { SecretsInterface } from "./secrets.ts";
 import type { PromptInterface } from "../prompt/types.ts";
+import type { HttpInterface } from "./http.ts";
 
 export interface Runtime {
   // ---------------------------------------------------------------------------
@@ -71,4 +72,11 @@ export interface Runtime {
    * No separate imports needed; use `runtime.prompt.text(...)` etc.
    */
   prompt: PromptInterface;
+
+  /**
+   * HTTP client — pre-bound to this command's AbortSignal.
+   * Convenience methods parse JSON and throw HttpError on non-2xx.
+   * Use `runtime.http.fetch(...)` for full control.
+   */
+  http: HttpInterface;
 }

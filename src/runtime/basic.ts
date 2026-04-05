@@ -11,6 +11,7 @@ import { createSecrets, type SecretsInterface } from "./secrets.ts";
 import { loadConfig, type LoadConfigOptions } from "./config.ts";
 import { text, select, confirm, multiSelect, autocomplete } from "../prompt/index.ts";
 import { NonTtyError, PromptCancelledError, type PromptInterface } from "../prompt/types.ts";
+import { createHttp, type HttpInterface } from "./http.ts";
 
 export interface BasicRuntimeOptions {
   args: ParsedArgs;
@@ -38,6 +39,7 @@ export class BasicRuntime implements Runtime {
   config: Record<string, unknown> = {};
   commandConfig: Record<string, unknown> = {};
   prompt: PromptInterface;
+  http: HttpInterface;
 
   private _signalManager: SignalManager;
   private _exitHandlers: Array<() => void | Promise<void>> = [];
@@ -69,6 +71,7 @@ export class BasicRuntime implements Runtime {
     this._signalManager = createSignalManager();
     this.signal = this._signalManager.signal;
 
+    this.http   = createHttp(this.signal);
     this.prompt = {
       text:         (opts) => text({ ...opts, signal: this.signal }),
       confirm:      (opts) => confirm({ ...opts, signal: this.signal }),
