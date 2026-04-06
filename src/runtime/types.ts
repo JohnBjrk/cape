@@ -6,6 +6,7 @@ import type { LogInterface } from "./log.ts";
 import type { SecretsInterface } from "./secrets.ts";
 import type { PromptInterface } from "../prompt/types.ts";
 import type { HttpInterface } from "./http.ts";
+import type { ExecInterface } from "./exec.ts";
 
 export interface Runtime {
   // ---------------------------------------------------------------------------
@@ -79,4 +80,10 @@ export interface Runtime {
    * Use `runtime.http.fetch(...)` for full control.
    */
   http: HttpInterface;
+
+  /**
+   * Shell / process execution — pre-bound to this command's AbortSignal.
+   * `run()` captures output; `interactive()` inherits stdio for editors/pagers.
+   */
+  exec: ExecInterface;
 }

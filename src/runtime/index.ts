@@ -2,6 +2,8 @@ export type { Runtime } from "./types.ts";
 export type { PromptInterface } from "../prompt/types.ts";
 export type { HttpInterface, HttpRequestOptions } from "./http.ts";
 export { HttpError } from "./http.ts";
+export type { ExecInterface, ExecOptions, ExecResult } from "./exec.ts";
+export { ExecError } from "./exec.ts";
 export type { OutputInterface, Spinner, ProgressBar, TableOptions, OutputCall } from "./output.ts";
 export type { FsInterface } from "./fs.ts";
 export type { StdinInterface } from "./stdin.ts";

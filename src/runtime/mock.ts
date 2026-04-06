@@ -8,6 +8,7 @@ import { createMockSignalManager } from "./signal.ts";
 import { createMockSecrets, type SecretsInterface } from "./secrets.ts";
 import { NonTtyError, PromptCancelledError, type PromptInterface } from "../prompt/types.ts";
 import { createMockHttp, type HttpInterface } from "./http.ts";
+import { createMockExec, type ExecInterface } from "./exec.ts";
 
 interface MockRuntimeOptions {
   args?: Partial<ParsedArgs>;
@@ -43,6 +44,7 @@ export class MockRuntime implements Runtime {
     PromptCancelledError,
   };
   http: HttpInterface = createMockHttp();
+  exec: ExecInterface = createMockExec();
 
   // Convenience accessors for assertions
   readonly printed: string[] = [];
