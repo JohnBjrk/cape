@@ -10,3 +10,4 @@ export type { StdinInterface } from "./stdin.ts";
 export type { LogInterface, LogCall } from "./log.ts";
 export type { SecretsInterface } from "./secrets.ts";
 export { MockRuntime, MockExitError } from "./mock.ts";
+export { ConfigValidationError } from "./config.ts";

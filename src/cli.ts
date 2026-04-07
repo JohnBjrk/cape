@@ -7,7 +7,7 @@ import { globalSchema, mergeSchemas, extractGlobalFlags } from "./parser/global-
 import { renderHelp } from "./help/render.ts";
 import { BasicRuntime, type BasicRuntimeOptions } from "./runtime/basic.ts";
 import { discoverPlugins, loadPlugin } from "./loader/index.ts";
-import { readFrameworkConfig } from "./runtime/config.ts";
+import { readFrameworkConfig, ConfigValidationError } from "./runtime/config.ts";
 import { createBuiltinCommands } from "./builtin/index.ts";
 import { resolveCompletions } from "./completion/resolve.ts";
 import { fromSchema, promptedToArgv } from "./prompt/from-schema.ts";
@@ -440,11 +440,19 @@ async function dispatch(
     ? { ...(command.config ?? {}), ...(subcommand.config ?? {}) }
     : command.config;
 
-  await runtime.loadConfig(config.name, command.name, {
-    overridePath:  globals.config,
-    cliSchema:     config.config,
-    commandSchema: commandConfigSchema,
-  });
+  try {
+    await runtime.loadConfig(config.name, command.name, {
+      overridePath:  globals.config,
+      cliSchema:     config.config,
+      commandSchema: commandConfigSchema,
+    });
+  } catch (err) {
+    if (err instanceof ConfigValidationError) {
+      for (const e of err.errors) printError(`Config error: ${e}`);
+      process.exit(1);
+    }
+    throw err;
+  }
 
   try {
     if (subcommand) {

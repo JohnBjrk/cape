@@ -7,7 +7,7 @@ import { createMockLog } from "./log.ts";
 import { createMockSecrets } from "./secrets.ts";
 import { createMockSignalManager } from "./signal.ts";
 import { MockRuntime } from "./mock.ts";
-import { loadConfig, readFrameworkConfig, findLocalConfigDir } from "./config.ts";
+import { loadConfig, readFrameworkConfig, findLocalConfigDir, ConfigValidationError } from "./config.ts";
 import { mkdtemp, rm, writeFile, mkdir, realpath } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir, homedir } from "node:os";
@@ -512,6 +512,83 @@ describe("loadConfig", () => {
     const result = await loadConfig("myctl", "deploy", { overridePath: cfgPath });
     expect(result.config.apiUrl).toBe("https://api.example.com");
     expect(result.config["myctl"]).toBeUndefined();
+  });
+
+  it("passes validation when types match schema", async () => {
+    const cfgPath = join(tmp, "config.toml");
+    await writeFile(cfgPath, 'apiUrl = "https://api.example.com"\nretries = 3\nenabled = true');
+    const result = await loadConfig("myctl", "deploy", {
+      overridePath: cfgPath,
+      cliSchema: {
+        apiUrl:  { type: "string" },
+        retries: { type: "number" },
+        enabled: { type: "boolean" },
+      },
+    });
+    expect(result.config.apiUrl).toBe("https://api.example.com");
+    expect(result.config.retries).toBe(3);
+    expect(result.config.enabled).toBe(true);
+  });
+
+  it("throws ConfigValidationError on wrong scalar type", async () => {
+    const cfgPath = join(tmp, "config.toml");
+    await writeFile(cfgPath, "retries = true");
+    await expect(
+      loadConfig("myctl", "deploy", {
+        overridePath: cfgPath,
+        cliSchema: { retries: { type: "number" } },
+      }),
+    ).rejects.toBeInstanceOf(ConfigValidationError);
+  });
+
+  it("includes the offending key in the error", async () => {
+    const cfgPath = join(tmp, "config.toml");
+    await writeFile(cfgPath, 'retries = "many"');
+    const err = await loadConfig("myctl", "deploy", {
+      overridePath: cfgPath,
+      cliSchema: { retries: { type: "number" } },
+    }).catch((e) => e);
+    expect(err).toBeInstanceOf(ConfigValidationError);
+    expect((err as ConfigValidationError).errors[0]).toContain("retries");
+    expect((err as ConfigValidationError).errors[0]).toContain("number");
+    expect((err as ConfigValidationError).errors[0]).toContain("string");
+  });
+
+  it("validates nested object fields", async () => {
+    const cfgPath = join(tmp, "config.toml");
+    await writeFile(cfgPath, '[db]\nport = "not-a-number"');
+    const err = await loadConfig("myctl", "deploy", {
+      overridePath: cfgPath,
+      cliSchema: {
+        db: { type: "object", fields: { port: { type: "number" } } },
+      },
+    }).catch((e) => e);
+    expect(err).toBeInstanceOf(ConfigValidationError);
+    expect((err as ConfigValidationError).errors[0]).toContain("db.port");
+  });
+
+  it("validates array item types", async () => {
+    const cfgPath = join(tmp, "config.toml");
+    await writeFile(cfgPath, "tags = [1, 2, 3]");
+    const err = await loadConfig("myctl", "deploy", {
+      overridePath: cfgPath,
+      cliSchema: {
+        tags: { type: "array", items: { type: "string" } },
+      },
+    }).catch((e) => e);
+    expect(err).toBeInstanceOf(ConfigValidationError);
+    expect((err as ConfigValidationError).errors[0]).toContain("tags[0]");
+  });
+
+  it("validates commandConfig schema", async () => {
+    const cfgPath = join(tmp, "config.toml");
+    await writeFile(cfgPath, "[deploy]\ntimeout = true");
+    const err = await loadConfig("myctl", "deploy", {
+      overridePath: cfgPath,
+      commandSchema: { timeout: { type: "number" } },
+    }).catch((e) => e);
+    expect(err).toBeInstanceOf(ConfigValidationError);
+    expect((err as ConfigValidationError).errors[0]).toContain("timeout");
   });
 });
 

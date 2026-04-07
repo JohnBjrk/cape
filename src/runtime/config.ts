@@ -2,7 +2,7 @@ import { join, isAbsolute } from "node:path";
 import { existsSync } from "node:fs";
 import { parseToml, type TomlDocument } from "./toml.ts";
 import { xdgConfigHome, expandHome } from "./fs.ts";
-import type { ConfigSchema } from "../parser/types.ts";
+import type { ConfigSchema, ConfigField } from "../parser/types.ts";
 
 // ---------------------------------------------------------------------------
 // Framework config (early read — before per-command dispatch)
@@ -113,10 +113,16 @@ export async function loadConfig(
   const { [cliName]: _framework, ...rawConfig } = merged;
   const rawCommandConfig = (merged[commandSection] as Record<string, unknown>) ?? {};
 
-  return {
-    config:        applyDefaults(rawConfig,        options?.cliSchema),
-    commandConfig: applyDefaults(rawCommandConfig, options?.commandSchema),
-  };
+  const config        = applyDefaults(rawConfig,        options?.cliSchema);
+  const commandConfig = applyDefaults(rawCommandConfig, options?.commandSchema);
+
+  const errors = [
+    ...(options?.cliSchema     ? validateConfig(config,        options.cliSchema)     : []),
+    ...(options?.commandSchema ? validateConfig(commandConfig, options.commandSchema)  : []),
+  ];
+  if (errors.length > 0) throw new ConfigValidationError(errors);
+
+  return { config, commandConfig };
 }
 
 // ---------------------------------------------------------------------------
@@ -168,6 +174,53 @@ function mergeDocuments(base: TomlDocument, override: TomlDocument): TomlDocumen
 
 function isPlainObject(v: unknown): v is Record<string, unknown> {
   return v !== null && typeof v === "object" && !Array.isArray(v);
+}
+
+// ---------------------------------------------------------------------------
+// Validation
+// ---------------------------------------------------------------------------
+
+export class ConfigValidationError extends Error {
+  constructor(public readonly errors: string[]) {
+    super(`Config validation failed:\n${errors.map((e) => `  ${e}`).join("\n")}`);
+    this.name = "ConfigValidationError";
+  }
+}
+
+function validateConfig(
+  values: Record<string, unknown>,
+  schema: ConfigSchema,
+  path = "",
+): string[] {
+  const errors: string[] = [];
+  for (const [key, field] of Object.entries(schema)) {
+    const value = values[key];
+    if (value === undefined) continue;
+    const keyPath = path ? `${path}.${key}` : key;
+    errors.push(...validateField(keyPath, value, field));
+  }
+  return errors;
+}
+
+function validateField(path: string, value: unknown, field: ConfigField): string[] {
+  if (field.type === "object") {
+    if (!isPlainObject(value)) return [`${path}: expected object, got ${typeLabel(value)}`];
+    return validateConfig(value as Record<string, unknown>, field.fields, path);
+  }
+  if (field.type === "array") {
+    if (!Array.isArray(value)) return [`${path}: expected array, got ${typeLabel(value)}`];
+    return value.flatMap((item, i) => validateField(`${path}[${i}]`, item, field.items));
+  }
+  if (typeof value !== field.type) {
+    return [`${path}: expected ${field.type}, got ${typeLabel(value)}`];
+  }
+  return [];
+}
+
+function typeLabel(v: unknown): string {
+  if (v === null) return "null";
+  if (Array.isArray(v)) return "array";
+  return typeof v;
 }
 
 /**
