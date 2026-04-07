@@ -9,9 +9,9 @@
  * The cli.config.ts must have a default export created with defineConfig().
  */
 
-import { resolve, dirname, join } from "node:path";
+import { resolve, dirname } from "node:path";
+import { mkdir } from "node:fs/promises";
 import type { CliConfigDef } from "../src/config/index.ts";
-import { generateInstallScript } from "../src/config/install.ts";
 
 const configPath = resolve(process.argv[2] ?? "cli.config.ts");
 const configDir = dirname(configPath);
@@ -32,8 +32,11 @@ try {
 }
 
 const entry = resolve(configDir, config.entry ?? "main.ts");
-const outfile = resolve(configDir, config.outfile ?? config.name);
+const outdir = resolve(process.cwd(), "dist");
+const outfile = resolve(outdir, config.outfile ?? config.name);
 const displayName = config.displayName ?? config.name;
+
+await mkdir(outdir, { recursive: true });
 
 console.log(`Building ${displayName} v${config.version}...`);
 console.log(`  entry:  ${entry}`);
@@ -51,15 +54,3 @@ if (proc.exitCode !== 0) {
 }
 
 console.log(`\n✓  Built: ${outfile}`);
-console.log(`   Run:   ./${config.outfile ?? config.name} --help`);
-
-// --- install.sh -----------------------------------------------------------
-if (config.install || config.repository) {
-  const installPath = join(configDir, "install.sh");
-  await Bun.write(installPath, generateInstallScript({ ...config, version: config.version }));
-  // Make executable
-  const { chmod } = await import("node:fs/promises");
-  await chmod(installPath, 0o755);
-  console.log(`\n✓  install.sh: ${installPath}`);
-  console.log(`   Distribute: curl -fsSL <url>/install.sh | sh`);
-}

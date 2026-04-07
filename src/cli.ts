@@ -195,15 +195,8 @@ export interface CliConfig extends CliInfo {
 
   /**
    * Binary distribution configuration for install.sh generation.
-   * Replaces the older `repository` shorthand.
    */
   install?: InstallConfig;
-
-  /**
-   * @deprecated Use `install: { type: "github", repo: "owner/repo" }` instead.
-   * Kept for backwards compatibility.
-   */
-  repository?: string;
 
   /**
    * First-run setup prompts for the built-in `init` command.

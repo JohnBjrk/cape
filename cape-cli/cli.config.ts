@@ -7,5 +7,5 @@ export default defineConfig({
   description: "Build, run, and manage Cape-based CLIs",
   entry: "main.ts",
   outfile: "cape",
-  repository: "cape-sh/cape",
+  install: { type: "github", repo: "JohnBjrk/cape" },
 });

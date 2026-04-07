@@ -73,9 +73,9 @@ export const buildCommand = defineCommand({
     }
 
     // Generate install.sh if an install source is configured
-    if ((config.install || config.repository) && version) {
+    if (config.install && version) {
       try {
-        const installPath = join(cwd, "install.sh");
+        const installPath = join(outdir, "install.sh");
         await Bun.write(
           installPath,
           generateInstallScript({ ...config, version } as Parameters<

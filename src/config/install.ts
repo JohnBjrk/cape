@@ -14,7 +14,7 @@ import type { CliConfig, InstallConfig } from "../cli.ts";
  *   <name>-linux-arm64
  *   <name>-linux-x64
  *
- * Requires config.install (or the deprecated config.repository) to be set.
+ * Requires config.install to be set.
  */
 export function generateInstallScript(config: CliConfig & { version: string }): string {
   const installCfg = resolveInstallConfig(config);
@@ -106,10 +106,7 @@ export function generateInstallScript(config: CliConfig & { version: string }): 
 // ---------------------------------------------------------------------------
 
 function resolveInstallConfig(config: CliConfig): InstallConfig | undefined {
-  if (config.install) return config.install;
-  // Backwards compat: `repository: "owner/repo"` → github install
-  if (config.repository) return { type: "github", repo: config.repository };
-  return undefined;
+  return config.install;
 }
 
 function buildUrlLine(install: InstallConfig, name: string, version: string, S: string): string {
