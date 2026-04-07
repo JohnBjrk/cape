@@ -473,14 +473,12 @@ async function dispatch(config: CliConfig, commands: CommandDef[], argv: string[
   const globals = extractGlobalFlags(parsed);
 
   // --- run ---
-  const activeSchema = subcommand?.schema ?? command.schema;
   const runtimeOpts: BasicRuntimeOptions = {
     args: parsed,
     rawEnv: getEnv(),
     globals,
     cliName: config.name,
     commandName: subcommand ? `${command.name}/${subcommand.name}` : command.name,
-    schema: activeSchema,
   };
   const runtime = new BasicRuntime(runtimeOpts);
 

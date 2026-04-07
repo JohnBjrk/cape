@@ -80,12 +80,6 @@ export interface ArgSchema {
       hideInSubcommandHelp?: boolean;
     };
   };
-  /**
-   * Environment variable names to expose on `runtime.env`.
-   * When declared, only these variables are visible to the command.
-   * When omitted, all environment variables are passed through.
-   */
-  env?: string[];
 }
 
 export interface ParsedArgs {

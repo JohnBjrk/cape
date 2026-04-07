@@ -1,5 +1,4 @@
 import type { ParsedArgs } from "../parser/types.ts";
-import type { ArgSchema } from "../parser/types.ts";
 import type { GlobalFlags } from "../parser/global-flags.ts";
 import type { Runtime } from "./types.ts";
 import { createOutput, createJsonOutput, type OutputInterface } from "./output.ts";
@@ -20,8 +19,6 @@ export interface BasicRuntimeOptions {
   globals: GlobalFlags;
   cliName: string;
   commandName: string;
-  /** The merged schema for the running command (used for env var isolation). */
-  schema?: ArgSchema;
 }
 
 /**
@@ -49,7 +46,7 @@ export class BasicRuntime implements Runtime {
 
   constructor(opts: BasicRuntimeOptions) {
     this.args = opts.args;
-    this.env = isolateEnv(opts.rawEnv, opts.schema);
+    this.env = opts.rawEnv;
 
     const { globals, cliName, commandName } = opts;
 
@@ -135,19 +132,4 @@ export class BasicRuntime implements Runtime {
 // Env var isolation
 // ---------------------------------------------------------------------------
 
-/**
- * If the schema declares `env: ["FOO", "BAR"]`, only expose those variables.
- * If no `env` field is declared, expose all environment variables.
- */
-function isolateEnv(
-  rawEnv: Record<string, string>,
-  schema: ArgSchema | undefined,
-): Record<string, string> {
-  const declared = (schema as { env?: string[] } | undefined)?.env;
-  if (!declared) return rawEnv;
-  const result: Record<string, string> = {};
-  for (const key of declared) {
-    if (rawEnv[key] !== undefined) result[key] = rawEnv[key]!;
-  }
-  return result;
-}
+
