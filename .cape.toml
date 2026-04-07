@@ -1,0 +1,2 @@
+[cape]
+pluginDirs = ["./cape-cli/plugins"]

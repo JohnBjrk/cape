@@ -1,0 +1,5 @@
+name = "prebuild"
+description = "Bundle cape source and type declarations into embedded.ts"
+command = "./prebuild.ts"
+enabled = true
+frameworkVersion = "1.0.0"
