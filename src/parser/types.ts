@@ -78,6 +78,11 @@ export interface ArgSchema {
       description?: string;
       complete?: CompletionSource;
       hideInSubcommandHelp?: boolean;
+      /**
+       * When true, show a confirm prompt if this boolean flag is not provided.
+       * Only meaningful for boolean flags. Other flag types use `required` to trigger prompting.
+       */
+      prompt?: boolean;
     };
   };
 }

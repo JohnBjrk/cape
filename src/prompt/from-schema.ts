@@ -1,5 +1,6 @@
 import type { ArgSchema } from "../parser/types.ts";
 import { text } from "./text.ts";
+import { confirm } from "./confirm.ts";
 import { select } from "./select.ts";
 import { autocomplete } from "./autocomplete.ts";
 import { multiSelect } from "./multi-select.ts";
@@ -28,11 +29,18 @@ export async function fromSchema(
   const flags = schema.flags ?? {};
 
   for (const [name, def] of Object.entries(flags)) {
-    // Only prompt for required non-boolean flags not already provided
-    if (!def.required || def.type === "boolean") continue;
     if (provided.has(name)) continue;
 
     const message = def.description ?? `Enter a value for --${name}`;
+
+    // Boolean with prompt: true → confirm prompt when not provided
+    if (def.type === "boolean") {
+      if (!def.prompt) continue;
+      result[name] = await confirm({ message });
+      continue;
+    }
+
+    if (!def.required) continue;
 
     if (def.multiple && def.complete?.type === "static") {
       // Multiple flag with static choices → multi-select
@@ -77,6 +85,10 @@ export function promptedToArgv(prompted: Record<string, unknown>): string[] {
   for (const [key, value] of Object.entries(prompted)) {
     if (Array.isArray(value)) {
       for (const v of value) argv.push(`--${key}`, String(v));
+    } else if (typeof value === "boolean") {
+      // Boolean flags take no value token — just the flag name for true.
+      // For false: omit entirely; the full re-parse will default required booleans to false.
+      if (value) argv.push(`--${key}`);
     } else if (value !== undefined && value !== null) {
       argv.push(`--${key}`, String(value));
     }

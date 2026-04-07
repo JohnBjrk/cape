@@ -102,7 +102,11 @@ export function resolve(tokens: Token[], schema: ArgSchema, opts?: ResolveOption
     } else if (def.multiple) {
       flags[name] = [];
     } else if (def.type === "boolean") {
-      flags[name] = false;
+      // Don't default prompt booleans to false during the pre-prompt parse
+      // (skipRequired mode) — leave undefined so fromSchema can detect and prompt.
+      if (!def.prompt || !opts?.skipRequired) {
+        flags[name] = false;
+      }
     }
   }
 

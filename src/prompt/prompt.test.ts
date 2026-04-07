@@ -5,6 +5,7 @@ import { confirmReducer, type ConfirmState } from "./confirm.ts";
 import { multiSelectReducer, type MultiSelectState } from "./multi-select.ts";
 import { autocompleteReducer, type AutocompleteState } from "./autocomplete.ts";
 import type { Key } from "./types.ts";
+import { fromSchema, promptedToArgv } from "./from-schema.ts";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -435,5 +436,95 @@ describe("autocompleteReducer", () => {
     const s1 = autocompleteReducer(s0, { type: "key", key: key("backspace") });
     expect(s1.query).toBe("hell");
     expect(s1.queryCursor).toBe(4);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// promptedToArgv
+// ---------------------------------------------------------------------------
+
+describe("promptedToArgv", () => {
+  it("converts string values to --flag value pairs", () => {
+    expect(promptedToArgv({ name: "Alice" })).toEqual(["--name", "Alice"]);
+  });
+
+  it("converts number values to --flag value pairs", () => {
+    expect(promptedToArgv({ count: 3 })).toEqual(["--count", "3"]);
+  });
+
+  it("converts boolean true to bare --flag", () => {
+    expect(promptedToArgv({ confirm: true })).toEqual(["--confirm"]);
+  });
+
+  it("omits boolean false", () => {
+    expect(promptedToArgv({ confirm: false })).toEqual([]);
+  });
+
+  it("expands array values to repeated --flag value pairs", () => {
+    expect(promptedToArgv({ tag: ["a", "b"] })).toEqual(["--tag", "a", "--tag", "b"]);
+  });
+
+  it("skips undefined and null", () => {
+    expect(promptedToArgv({ a: undefined, b: null })).toEqual([]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// fromSchema — prompt boolean
+// ---------------------------------------------------------------------------
+
+describe("fromSchema — prompt boolean", () => {
+  it("skips boolean flags without prompt: true", async () => {
+    const result = await fromSchema(
+      { flags: { verbose: { type: "boolean" } } },
+      new Set<string>(),
+    );
+    expect(result).toEqual({});
+  });
+
+  it("skips prompt boolean that is already provided", async () => {
+    const result = await fromSchema(
+      { flags: { confirm: { type: "boolean", prompt: true } } },
+      new Set<string>(["confirm"]),
+    );
+    expect(result).toEqual({});
+  });
+});
+
+// ---------------------------------------------------------------------------
+// resolve — prompt boolean defaulting in skipRequired mode
+// ---------------------------------------------------------------------------
+
+describe("resolve — prompt boolean skipRequired mode", () => {
+  it("leaves prompt boolean undefined in skipRequired mode", async () => {
+    const { resolve } = await import("../parser/resolve.ts");
+    const { tokenize } = await import("../parser/tokenize.ts");
+    const schema = { flags: { confirm: { type: "boolean" as const, prompt: true } } };
+    const result = resolve(tokenize([]), schema, { skipRequired: true });
+    expect(result.flags["confirm"]).toBeUndefined();
+  });
+
+  it("defaults prompt boolean to false in full parse", async () => {
+    const { resolve } = await import("../parser/resolve.ts");
+    const { tokenize } = await import("../parser/tokenize.ts");
+    const schema = { flags: { confirm: { type: "boolean" as const, prompt: true } } };
+    const result = resolve(tokenize([]), schema);
+    expect(result.flags["confirm"]).toBe(false);
+  });
+
+  it("regular boolean still defaults to false in skipRequired mode", async () => {
+    const { resolve } = await import("../parser/resolve.ts");
+    const { tokenize } = await import("../parser/tokenize.ts");
+    const schema = { flags: { verbose: { type: "boolean" as const } } };
+    const result = resolve(tokenize([]), schema, { skipRequired: true });
+    expect(result.flags["verbose"]).toBe(false);
+  });
+
+  it("required boolean without prompt: true still defaults to false", async () => {
+    const { resolve } = await import("../parser/resolve.ts");
+    const { tokenize } = await import("../parser/tokenize.ts");
+    const schema = { flags: { confirm: { type: "boolean" as const, required: true } } };
+    const result = resolve(tokenize([]), schema, { skipRequired: true });
+    expect(result.flags["confirm"]).toBe(false);
   });
 });
