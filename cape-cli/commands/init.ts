@@ -103,7 +103,8 @@ export const initCommand = defineCommand({
 // ---------------------------------------------------------------------------
 
 function cliConfigTemplate(name: string): string {
-  return `import { defineConfig, defineConfigSchema, typedWith } from "cape";
+  return `import { defineConfig, defineConfigSchema, defineCommandConfig, typedWith } from "cape";
+import type { RuntimeWith, ConfigField, ConfigSchema } from "cape";
 
 // Declare top-level config keys here (available as runtime.config in all commands).
 // Example: apiUrl: { type: "string", description: "Base API URL" }
@@ -118,9 +119,15 @@ export default defineConfig({
   config: globalConfig,
 });
 
-// Import defineCommand / defineSubcommand from here instead of "cape" to get
-// runtime.config typed from the schema above.
+// Import defineCommand / defineSubcommand / defineCommandConfig from here instead of
+// "cape" to get runtime.config typed from the schema above.
 export const { defineCommand, defineSubcommand } = typedWith<typeof globalConfig>();
+export { defineCommandConfig };
+
+// CommandRuntime<CC> — typed runtime for built-in commands.
+// Use as the type for runtime parameters when passing to helper classes/functions.
+export type CommandRuntime<CC extends ConfigSchema = Record<never, ConfigField>> =
+  RuntimeWith<CC, typeof globalConfig>;
 
 // ---------------------------------------------------------------------------
 // Config file reference (.${name}.toml or ~/.config/${name}/config.toml)

@@ -51,7 +51,7 @@ export interface CommandDef {
  * A Runtime with both `commandConfig` and `config` narrowed to their inferred types.
  * `CC` is the command-level config schema; `GC` is the CLI-level (global) config schema.
  */
-type RuntimeWith<CC extends ConfigSchema, GC extends ConfigSchema> =
+export type RuntimeWith<CC extends ConfigSchema, GC extends ConfigSchema> =
   Omit<Runtime, "commandConfig" | "config"> & {
     commandConfig: InferConfig<CC>;
     config: InferConfig<GC>;

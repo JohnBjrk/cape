@@ -65,3 +65,26 @@ export function defineConfig<T extends CliConfigDef>(config: T): T {
 export function defineConfigSchema<S extends ConfigSchema>(schema: S): S {
   return schema;
 }
+
+/**
+ * Defines a per-command config schema with preserved literal types — no `as const` needed.
+ * Use this to declare command-level config inline or in a variable.
+ *
+ * @example
+ * ```ts
+ * const commandConfig = defineCommandConfig({
+ *   alwaysYes: { type: "boolean", default: false },
+ * });
+ *
+ * export const myCommand = defineCommand({
+ *   name: "my-command",
+ *   config: commandConfig,
+ *   async run(_args, runtime) {
+ *     if (runtime.commandConfig.alwaysYes) { ... }
+ *   },
+ * });
+ * ```
+ */
+export function defineCommandConfig<S extends ConfigSchema>(schema: S): S {
+  return schema;
+}
