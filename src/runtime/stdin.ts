@@ -56,7 +56,9 @@ export function createStdin(): StdinInterface {
 export function createMockStdin(content = "", isTTY = false): StdinInterface {
   return {
     isTTY,
-    async read() { return content; },
+    async read() {
+      return content;
+    },
     async *lines() {
       for (const line of content.split("\n")) {
         if (line || content.endsWith("\n")) yield line;

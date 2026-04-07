@@ -71,9 +71,7 @@ describe("loadPlugin", () => {
       ...plugin!,
       manifest: { ...plugin!.manifest, frameworkVersion: "99.0.0" },
     };
-    await expect(loadPlugin(incompatible, "run")).rejects.toThrow(
-      "requires framework v99.x",
-    );
+    await expect(loadPlugin(incompatible, "run")).rejects.toThrow("requires framework v99.x");
   });
 
   it("throws on invalid frameworkVersion format", async () => {

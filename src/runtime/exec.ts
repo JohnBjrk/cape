@@ -12,8 +12,7 @@ export class ExecError extends Error {
     public readonly stderr: string,
   ) {
     super(
-      `Command failed (exit ${exitCode}): ${command}` +
-      (stderr.trim() ? `\n${stderr.trim()}` : ""),
+      `Command failed (exit ${exitCode}): ${command}` + (stderr.trim() ? `\n${stderr.trim()}` : ""),
     );
     this.name = "ExecError";
   }
@@ -99,9 +98,9 @@ export function createExec(signal: AbortSignal): ExecInterface {
     const [args, label] = toArgs(command);
 
     const proc = Bun.spawn(args, {
-      cwd:    options?.cwd,
-      env:    mergeEnv(options?.env),
-      stdin:  options?.stdin !== undefined ? Buffer.from(options.stdin) : "ignore",
+      cwd: options?.cwd,
+      env: mergeEnv(options?.env),
+      stdin: options?.stdin !== undefined ? Buffer.from(options.stdin) : "ignore",
       stdout: "pipe",
       stderr: "pipe",
     });
@@ -127,8 +126,12 @@ export function createExec(signal: AbortSignal): ExecInterface {
       stdout,
       stderr,
       ok: exitCode === 0,
-      lines: () => stdout.split("\n").map((l) => l.trim()).filter(Boolean),
-      json:  <T>() => JSON.parse(stdout) as T,
+      lines: () =>
+        stdout
+          .split("\n")
+          .map((l) => l.trim())
+          .filter(Boolean),
+      json: <T>() => JSON.parse(stdout) as T,
     };
 
     if (!options?.noThrow && exitCode !== 0) {
@@ -145,9 +148,9 @@ export function createExec(signal: AbortSignal): ExecInterface {
     const [args] = toArgs(command);
 
     const proc = Bun.spawn(args, {
-      cwd:    options?.cwd,
-      env:    mergeEnv(options?.env),
-      stdin:  "inherit",
+      cwd: options?.cwd,
+      env: mergeEnv(options?.env),
+      stdin: "inherit",
       stdout: "inherit",
       stderr: "inherit",
     });
@@ -179,8 +182,12 @@ function makeResult(exitCode: number, stdout: string, stderr: string): ExecResul
     stdout,
     stderr,
     ok: exitCode === 0,
-    lines: () => stdout.split("\n").map((l) => l.trim()).filter(Boolean),
-    json:  <T>() => JSON.parse(stdout) as T,
+    lines: () =>
+      stdout
+        .split("\n")
+        .map((l) => l.trim())
+        .filter(Boolean),
+    json: <T>() => JSON.parse(stdout) as T,
   };
 }
 
@@ -191,7 +198,10 @@ export function createMockExec(): ExecInterface & {
    * Pre-configure the result for a command.
    * `command` matches the string passed to run(), or joined args for arrays.
    */
-  mockResult(command: string, result: { exitCode?: number; stdout?: string; stderr?: string }): void;
+  mockResult(
+    command: string,
+    result: { exitCode?: number; stdout?: string; stderr?: string },
+  ): void;
 } {
   const calls: MockExecCall[] = [];
   const mocked = new Map<string, { exitCode: number; stdout: string; stderr: string }>();
@@ -208,8 +218,8 @@ export function createMockExec(): ExecInterface & {
       const { key, preset } = lookup(command);
       calls.push({ command, options });
       const exitCode = preset?.exitCode ?? 0;
-      const stdout   = preset?.stdout   ?? "";
-      const stderr   = preset?.stderr   ?? "";
+      const stdout = preset?.stdout ?? "";
+      const stderr = preset?.stderr ?? "";
       if (!options?.noThrow && exitCode !== 0) {
         throw new ExecError(exitCode, key, stdout, stderr);
       }
@@ -227,8 +237,8 @@ export function createMockExec(): ExecInterface & {
     mockResult(command, result) {
       mocked.set(command, {
         exitCode: result.exitCode ?? 0,
-        stdout:   result.stdout   ?? "",
-        stderr:   result.stderr   ?? "",
+        stdout: result.stdout ?? "",
+        stderr: result.stderr ?? "",
       });
     },
   };

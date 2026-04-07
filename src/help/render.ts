@@ -6,11 +6,7 @@ import type { CliInfo, HelpContext, RenderOptions, CommandSummary } from "./type
 const INDENT = "  ";
 const COL_GAP = 3; // min spaces between left and right columns
 
-export function renderHelp(
-  cli: CliInfo,
-  ctx: HelpContext,
-  opts: RenderOptions = {},
-): string {
+export function renderHelp(cli: CliInfo, ctx: HelpContext, opts: RenderOptions = {}): string {
   const style = makeStyler(opts.noColor ?? false);
   const lines: string[] = [];
 
@@ -125,21 +121,15 @@ export function renderHelp(
 function buildPositionalUsage(schema: ArgSchema): string {
   const positionals = schema.positionals ?? [];
   if (positionals.length === 0) return "";
-  return (
-    positionals
-      .map((p) =>
-        p.variadic
-          ? `[${p.name}...]`
-          : `[${p.name}]`,
-      )
-      .join(" ") + " "
-  );
+  return positionals.map((p) => (p.variadic ? `[${p.name}...]` : `[${p.name}]`)).join(" ") + " ";
 }
 
 function renderSummaries(items: CommandSummary[]): string[] {
   const colWidth = Math.max(...items.map((c) => c.name.length)) + COL_GAP;
   return items.map((c) => {
-    const nameCol = (c.name + (c.aliases?.length ? `, ${c.aliases.join(", ")}` : "")).padEnd(colWidth);
+    const nameCol = (c.name + (c.aliases?.length ? `, ${c.aliases.join(", ")}` : "")).padEnd(
+      colWidth,
+    );
     return `${INDENT}${nameCol}${c.description}`;
   });
 }
@@ -168,8 +158,7 @@ function renderFlagSection(
     const typeHint = def.type !== "boolean" ? ` <${def.type}>` : "";
     const multiple = def.multiple ? "..." : "";
     const left = `--${name}${alias}${typeHint}${multiple}`;
-    const defaultHint =
-      def.default !== undefined ? style.dim(` (default: ${def.default})`) : "";
+    const defaultHint = def.default !== undefined ? style.dim(` (default: ${def.default})`) : "";
     const right = (def.description ?? "") + defaultHint;
     return { left, right };
   });

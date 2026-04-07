@@ -4,7 +4,8 @@
   "type": "module",
   "private": true,
   "devDependencies": {
-    "@types/bun": "latest"
+    "@types/bun": "latest",
+    "prettier": "^3.8.1"
   },
   "peerDependencies": {
     "typescript": "^5"
@@ -12,6 +13,8 @@
   "version": "0.1.0",
   "scripts": {
     "typecheck": "bunx tsc",
+    "format": "prettier --write \"**/*.{ts,json}\"",
+    "format:check": "prettier --check \"**/*.{ts,json}\"",
     "test": "bun run typecheck && bun test",
     "cape:prebuild": "bun cape-cli/scripts/prebuild.ts",
     "cape:build": "bun run cape:prebuild && bun scripts/build.ts cape-cli/cli.config.ts",

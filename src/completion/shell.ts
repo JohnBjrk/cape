@@ -15,9 +15,12 @@ export type Shell = "bash" | "zsh" | "fish";
  */
 export function generateCompletionScript(cliName: string, shell: Shell): string {
   switch (shell) {
-    case "bash": return bashScript(cliName);
-    case "zsh":  return zshScript(cliName);
-    case "fish": return fishScript(cliName);
+    case "bash":
+      return bashScript(cliName);
+    case "zsh":
+      return zshScript(cliName);
+    case "fish":
+      return fishScript(cliName);
   }
 }
 
@@ -79,7 +82,7 @@ export function postInstallMessage(cliName: string, shell: Shell, installedPath:
  */
 export function detectShell(): Shell | undefined {
   const shellPath = process.env["SHELL"] ?? "";
-  if (shellPath.endsWith("zsh"))  return "zsh";
+  if (shellPath.endsWith("zsh")) return "zsh";
   if (shellPath.endsWith("bash")) return "bash";
   if (shellPath.endsWith("fish")) return "fish";
   return undefined;

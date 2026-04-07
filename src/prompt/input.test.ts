@@ -44,15 +44,15 @@ describe("parseKey", () => {
   });
 
   it("parses arrow keys (ESC [ A/B/C/D)", () => {
-    expect(parseKey([27, 91, 65])).toEqual({ key: { type: "up" },    consumed: 3 });
-    expect(parseKey([27, 91, 66])).toEqual({ key: { type: "down" },  consumed: 3 });
+    expect(parseKey([27, 91, 65])).toEqual({ key: { type: "up" }, consumed: 3 });
+    expect(parseKey([27, 91, 66])).toEqual({ key: { type: "down" }, consumed: 3 });
     expect(parseKey([27, 91, 67])).toEqual({ key: { type: "right" }, consumed: 3 });
-    expect(parseKey([27, 91, 68])).toEqual({ key: { type: "left" },  consumed: 3 });
+    expect(parseKey([27, 91, 68])).toEqual({ key: { type: "left" }, consumed: 3 });
   });
 
   it("parses Home and End (ESC [ H/F)", () => {
     expect(parseKey([27, 91, 72])).toEqual({ key: { type: "home" }, consumed: 3 });
-    expect(parseKey([27, 91, 70])).toEqual({ key: { type: "end" },  consumed: 3 });
+    expect(parseKey([27, 91, 70])).toEqual({ key: { type: "end" }, consumed: 3 });
   });
 
   it("parses Delete (ESC [ 3 ~)", () => {
@@ -76,8 +76,8 @@ describe("parseKey", () => {
   });
 
   it("parses SS3 arrow keys (ESC O A/B/C/D)", () => {
-    expect(parseKey([27, 79, 65])).toEqual({ key: { type: "up" },    consumed: 3 });
-    expect(parseKey([27, 79, 66])).toEqual({ key: { type: "down" },  consumed: 3 });
+    expect(parseKey([27, 79, 65])).toEqual({ key: { type: "up" }, consumed: 3 });
+    expect(parseKey([27, 79, 66])).toEqual({ key: { type: "down" }, consumed: 3 });
   });
 });
 

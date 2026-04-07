@@ -30,7 +30,11 @@ export const runCommand = defineCommand({
     }
 
     // Load config — verify name if provided, read entry point
-    const { config } = await resolveName(configPath, args.flags.name as string | undefined, runtime);
+    const { config } = await resolveName(
+      configPath,
+      args.flags.name as string | undefined,
+      runtime,
+    );
     const entry = (config.entry as string | undefined) ?? "main.ts";
 
     const entryPath = resolve(cwd, entry);
@@ -58,4 +62,3 @@ export const runCommand = defineCommand({
     await import(entryPath);
   },
 });
-

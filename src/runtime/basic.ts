@@ -49,37 +49,41 @@ export class BasicRuntime implements Runtime {
 
   constructor(opts: BasicRuntimeOptions) {
     this.args = opts.args;
-    this.env  = isolateEnv(opts.rawEnv, opts.schema);
+    this.env = isolateEnv(opts.rawEnv, opts.schema);
 
     const { globals, cliName, commandName } = opts;
 
     if (globals.json) {
       const jsonOut = createJsonOutput(globals.quiet);
-      this.output       = jsonOut;
-      this._flushJson   = () => jsonOut.flushJson();
+      this.output = jsonOut;
+      this._flushJson = () => jsonOut.flushJson();
     } else {
       this.output = createOutput({
         noColor: globals.noColor,
-        quiet:   globals.quiet,
-        isTTY:   !!process.stdout.isTTY,
+        quiet: globals.quiet,
+        isTTY: !!process.stdout.isTTY,
       });
     }
 
-    this.fs     = createFs(cliName);
-    this.stdin  = createStdin();
-    this.log    = createLog({ verbose: globals.verbose, debug: globals.debug, noColor: globals.noColor });
+    this.fs = createFs(cliName);
+    this.stdin = createStdin();
+    this.log = createLog({
+      verbose: globals.verbose,
+      debug: globals.debug,
+      noColor: globals.noColor,
+    });
     this.secrets = createSecrets(cliName, commandName);
 
     this._signalManager = createSignalManager();
     this.signal = this._signalManager.signal;
 
-    this.http   = createHttp(this.signal);
-    this.exec   = createExec(this.signal);
+    this.http = createHttp(this.signal);
+    this.exec = createExec(this.signal);
     this.prompt = {
-      text:         (opts) => text({ ...opts, signal: this.signal }),
-      confirm:      (opts) => confirm({ ...opts, signal: this.signal }),
-      select:       (opts) => select({ ...opts, signal: this.signal }),
-      multiSelect:  (opts) => multiSelect({ ...opts, signal: this.signal }),
+      text: (opts) => text({ ...opts, signal: this.signal }),
+      confirm: (opts) => confirm({ ...opts, signal: this.signal }),
+      select: (opts) => select({ ...opts, signal: this.signal }),
+      multiSelect: (opts) => multiSelect({ ...opts, signal: this.signal }),
       autocomplete: (opts) => autocomplete({ ...opts, signal: this.signal }),
       NonTtyError,
       PromptCancelledError,
@@ -97,9 +101,13 @@ export class BasicRuntime implements Runtime {
   }
 
   /** Loads config.toml and populates this.config / this.commandConfig. */
-  async loadConfig(cliName: string, commandSection: string, opts?: LoadConfigOptions): Promise<void> {
+  async loadConfig(
+    cliName: string,
+    commandSection: string,
+    opts?: LoadConfigOptions,
+  ): Promise<void> {
     const result = await loadConfig(cliName, commandSection, opts);
-    this.config        = result.config;
+    this.config = result.config;
     this.commandConfig = result.commandConfig;
   }
 

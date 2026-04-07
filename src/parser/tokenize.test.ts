@@ -10,15 +10,11 @@ describe("tokenize", () => {
   });
 
   it("produces flag tokens for --long flags", () => {
-    expect(tokenize(["--verbose"])).toEqual([
-      { type: "flag", raw: "--verbose" },
-    ]);
+    expect(tokenize(["--verbose"])).toEqual([{ type: "flag", raw: "--verbose" }]);
   });
 
   it("produces flag tokens for -short flags", () => {
-    expect(tokenize(["-v"])).toEqual([
-      { type: "flag", raw: "-v" },
-    ]);
+    expect(tokenize(["-v"])).toEqual([{ type: "flag", raw: "-v" }]);
   });
 
   it("splits --flag=value into flag + value tokens", () => {

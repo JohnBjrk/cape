@@ -12,7 +12,10 @@ export interface DiscoverOptions {
  * enabled plugins. Directories that don't exist are silently skipped.
  * Malformed manifests are warned about and skipped.
  */
-export async function discoverPlugins(dirs: string[], opts?: DiscoverOptions): Promise<DiscoveredPlugin[]> {
+export async function discoverPlugins(
+  dirs: string[],
+  opts?: DiscoverOptions,
+): Promise<DiscoveredPlugin[]> {
   const results: DiscoveredPlugin[] = [];
   const seen = new Set<string>(); // deduplicate by canonical command name
 
@@ -49,7 +52,7 @@ async function findManifestFiles(dir: string): Promise<string[]> {
   for (const entry of entries) {
     const fullPath = join(dir, entry.name);
     if (entry.isDirectory()) {
-      results.push(...await findManifestFiles(fullPath));
+      results.push(...(await findManifestFiles(fullPath)));
     } else if (entry.name.endsWith(".plugin.toml")) {
       results.push(fullPath);
     }

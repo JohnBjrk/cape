@@ -53,9 +53,7 @@ export function resolve(tokens: Token[], schema: ArgSchema, opts?: ResolveOption
 
     // --- flag token ---
     const raw = token.raw;
-    const canonical = raw.startsWith("--")
-      ? raw.slice(2)
-      : aliasMap.get(raw);
+    const canonical = raw.startsWith("--") ? raw.slice(2) : aliasMap.get(raw);
 
     const def = canonical !== undefined ? schemaFlags[canonical] : undefined;
 
@@ -85,9 +83,7 @@ export function resolve(tokens: Token[], schema: ArgSchema, opts?: ResolveOption
     if (def.type === "number") {
       const n = Number(rawValue);
       if (Number.isNaN(n)) {
-        throw new ParseError(
-          `--${canonical} expects a number, got "${rawValue}"`,
-        );
+        throw new ParseError(`--${canonical} expects a number, got "${rawValue}"`);
       }
       setValue(flags, canonical, n, def.multiple ?? false);
     } else {

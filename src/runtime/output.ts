@@ -83,7 +83,7 @@ interface JsonOutputInternal extends OutputInterface {
  * printError / warn always write to stderr (not captured).
  */
 export function createJsonOutput(quiet: boolean): JsonOutputInternal {
-  const texts: string[]   = [];
+  const texts: string[] = [];
   const results: unknown[] = [];
 
   function addText(text: string) {
@@ -95,36 +95,60 @@ export function createJsonOutput(quiet: boolean): JsonOutputInternal {
 
   const silentSpinner: Spinner = {
     update() {},
-    stop()  {},
-    succeed(msg?) { if (msg) addText(msg); },
-    fail(msg?)    { if (msg) addText(msg); },
+    stop() {},
+    succeed(msg?) {
+      if (msg) addText(msg);
+    },
+    fail(msg?) {
+      if (msg) addText(msg);
+    },
   };
 
   const silentBar: ProgressBar = {
-    tick()           {},
-    setTotal()       {},
-    done(msg?)       { if (msg) addText(msg); },
+    tick() {},
+    setTotal() {},
+    done(msg?) {
+      if (msg) addText(msg);
+    },
   };
 
   return {
-    print(text)       { addText(text); },
-    printError(text)  { process.stderr.write(text + "\n"); },
-    success(msg)      { addText(`✓ ${msg}`); },
-    warn(msg)         { process.stderr.write(`⚠ ${msg}\n`); },
-    json(value)       { addResult(value); },
-    table(rows)       { addResult(rows); },
-    list(items)       { addResult(items); },
-    spinner()         { return silentSpinner; },
+    print(text) {
+      addText(text);
+    },
+    printError(text) {
+      process.stderr.write(text + "\n");
+    },
+    success(msg) {
+      addText(`✓ ${msg}`);
+    },
+    warn(msg) {
+      process.stderr.write(`⚠ ${msg}\n`);
+    },
+    json(value) {
+      addResult(value);
+    },
+    table(rows) {
+      addResult(rows);
+    },
+    list(items) {
+      addResult(items);
+    },
+    spinner() {
+      return silentSpinner;
+    },
     async withSpinner<T>(_msg: string, fn: (s: Spinner) => Promise<T>) {
       return fn(silentSpinner);
     },
-    progressBar()     { return silentBar; },
+    progressBar() {
+      return silentBar;
+    },
     async withProgressBar<T>(_total: number, fn: (tick: (n?: number) => void) => Promise<T>) {
       return fn(() => {});
     },
 
     flushJson() {
-      const hasTexts   = texts.length > 0;
+      const hasTexts = texts.length > 0;
       const hasResults = results.length > 0;
       let value: unknown;
 
@@ -162,11 +186,22 @@ export function createOutput(opts: OutputOptions): OutputInterface {
   const { noColor, quiet, isTTY } = opts;
 
   const c = noColor
-    ? { bold: (s: string) => s, dim: (s: string) => s, cyan: (s: string) => s, green: (s: string) => s, red: (s: string) => s, yellow: (s: string) => s }
+    ? {
+        bold: (s: string) => s,
+        dim: (s: string) => s,
+        cyan: (s: string) => s,
+        green: (s: string) => s,
+        red: (s: string) => s,
+        yellow: (s: string) => s,
+      }
     : style;
 
-  function print(text: string) { process.stdout.write(text + "\n"); }
-  function printError(text: string) { process.stderr.write(text + "\n"); }
+  function print(text: string) {
+    process.stdout.write(text + "\n");
+  }
+  function printError(text: string) {
+    process.stderr.write(text + "\n");
+  }
   function success(message: string) {
     if (quiet) return;
     print(`${c.green("✓")} ${message}`);
@@ -200,17 +235,21 @@ export function createOutput(opts: OutputOptions): OutputInterface {
       return Math.max(headerLen, maxDataLen);
     });
 
-    const top    = "┌" + widths.map((w) => "─".repeat(w + 2)).join("┬") + "┐";
-    const mid    = "├" + widths.map((w) => "─".repeat(w + 2)).join("┼") + "┤";
+    const top = "┌" + widths.map((w) => "─".repeat(w + 2)).join("┬") + "┐";
+    const mid = "├" + widths.map((w) => "─".repeat(w + 2)).join("┼") + "┤";
     const bottom = "└" + widths.map((w) => "─".repeat(w + 2)).join("┴") + "┘";
 
-    const header = "│" + columns.map((col, i) => ` ${c.bold(col.padEnd(widths[i]!))} `).join("│") + "│";
+    const header =
+      "│" + columns.map((col, i) => ` ${c.bold(col.padEnd(widths[i]!))} `).join("│") + "│";
 
     print(top);
     print(header);
     print(mid);
     for (const row of rows) {
-      const line = "│" + columns.map((col, i) => ` ${String(row[col] ?? "").padEnd(widths[i]!)} `).join("│") + "│";
+      const line =
+        "│" +
+        columns.map((col, i) => ` ${String(row[col] ?? "").padEnd(widths[i]!)} `).join("│") +
+        "│";
       print(line);
     }
     print(bottom);
@@ -248,7 +287,10 @@ export function createOutput(opts: OutputOptions): OutputInterface {
     return createRealProgressBar(total, noColor);
   }
 
-  async function withProgressBar<T>(total: number, fn: (tick: (n?: number) => void) => Promise<T>): Promise<T> {
+  async function withProgressBar<T>(
+    total: number,
+    fn: (tick: (n?: number) => void) => Promise<T>,
+  ): Promise<T> {
     const bar = progressBar(total);
     try {
       return await fn((n) => bar.tick(n));
@@ -257,7 +299,19 @@ export function createOutput(opts: OutputOptions): OutputInterface {
     }
   }
 
-  return { print, printError, success, warn, json: jsonOut, table, list, spinner, withSpinner, progressBar, withProgressBar };
+  return {
+    print,
+    printError,
+    success,
+    warn,
+    json: jsonOut,
+    table,
+    list,
+    spinner,
+    withSpinner,
+    progressBar,
+    withProgressBar,
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -289,7 +343,9 @@ function createRealSpinner(initialMessage: string, noColor: boolean): Spinner {
   }
 
   return {
-    update(msg) { message = msg; },
+    update(msg) {
+      message = msg;
+    },
     stop,
     succeed(msg) {
       stop();
@@ -307,14 +363,25 @@ function createRealSpinner(initialMessage: string, noColor: boolean): Spinner {
 }
 
 // No-op spinner for non-TTY (succeed/fail still emit lines)
-function createNoOpSpinner(message: string, print: (s: string) => void, printError: (s: string) => void, noColor: boolean): Spinner {
+function createNoOpSpinner(
+  message: string,
+  print: (s: string) => void,
+  printError: (s: string) => void,
+  noColor: boolean,
+): Spinner {
   let current = message;
   const c = noColor ? { green: (s: string) => s, red: (s: string) => s } : style;
   return {
-    update(msg) { current = msg; },
+    update(msg) {
+      current = msg;
+    },
     stop() {},
-    succeed(msg) { print(`${c.green("✓")} ${msg ?? current}`); },
-    fail(msg) { printError(`${c.red("✗")} ${msg ?? current}`); },
+    succeed(msg) {
+      print(`${c.green("✓")} ${msg ?? current}`);
+    },
+    fail(msg) {
+      printError(`${c.red("✗")} ${msg ?? current}`);
+    },
   };
 }
 
@@ -384,19 +451,39 @@ export function createMockOutput(): OutputInterface & { calls: OutputCall[] } {
 
   return {
     calls,
-    print(text) { calls.push({ type: "print", text }); },
-    printError(text) { calls.push({ type: "printError", text }); },
-    success(message) { calls.push({ type: "success", message }); },
-    warn(message) { calls.push({ type: "warn", message }); },
-    json(value) { calls.push({ type: "json", value }); },
-    table(rows, opts) { calls.push({ type: "table", rows, opts }); },
-    list(items) { calls.push({ type: "list", items }); },
-    spinner(message) { calls.push({ type: "spinner", message }); return noOpSpinner; },
+    print(text) {
+      calls.push({ type: "print", text });
+    },
+    printError(text) {
+      calls.push({ type: "printError", text });
+    },
+    success(message) {
+      calls.push({ type: "success", message });
+    },
+    warn(message) {
+      calls.push({ type: "warn", message });
+    },
+    json(value) {
+      calls.push({ type: "json", value });
+    },
+    table(rows, opts) {
+      calls.push({ type: "table", rows, opts });
+    },
+    list(items) {
+      calls.push({ type: "list", items });
+    },
+    spinner(message) {
+      calls.push({ type: "spinner", message });
+      return noOpSpinner;
+    },
     async withSpinner<T>(message: string, fn: (s: Spinner) => Promise<T>) {
       calls.push({ type: "spinner", message });
       return fn(noOpSpinner);
     },
-    progressBar(total) { calls.push({ type: "progressBar", total }); return noOpBar; },
+    progressBar(total) {
+      calls.push({ type: "progressBar", total });
+      return noOpBar;
+    },
     async withProgressBar<T>(total: number, fn: (tick: (n?: number) => void) => Promise<T>) {
       calls.push({ type: "progressBar", total });
       return fn(() => {});

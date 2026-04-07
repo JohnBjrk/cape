@@ -7,7 +7,12 @@ import { createMockLog } from "./log.ts";
 import { createMockSecrets } from "./secrets.ts";
 import { createMockSignalManager } from "./signal.ts";
 import { MockRuntime } from "./mock.ts";
-import { loadConfig, readFrameworkConfig, findLocalConfigDir, ConfigValidationError } from "./config.ts";
+import {
+  loadConfig,
+  readFrameworkConfig,
+  findLocalConfigDir,
+  ConfigValidationError,
+} from "./config.ts";
 import { mkdtemp, rm, writeFile, mkdir, realpath } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir, homedir } from "node:os";
@@ -233,7 +238,7 @@ describe("createMockLog", () => {
     log.debug("d msg");
     expect(log.calls).toEqual([
       { level: "verbose", message: "v msg" },
-      { level: "debug",   message: "d msg" },
+      { level: "debug", message: "d msg" },
     ]);
   });
 });
@@ -320,7 +325,14 @@ describe("MockRuntime", () => {
   });
 
   it("accepts pre-set args", () => {
-    const rt = new MockRuntime({ args: { flags: { name: "Alice" }, positionals: [], passthrough: [], provided: new Set(["name"]) } });
+    const rt = new MockRuntime({
+      args: {
+        flags: { name: "Alice" },
+        positionals: [],
+        passthrough: [],
+        provided: new Set(["name"]),
+      },
+    });
     expect(rt.args.flags["name"]).toBe("Alice");
     expect(rt.args.provided.has("name")).toBe(true);
   });
@@ -338,15 +350,19 @@ describe("MockRuntime", () => {
   });
 
   it("files option pre-populates the fs", async () => {
-    const rt = new MockRuntime({ files: { "/config/file.toml": "key = \"value\"" } });
+    const rt = new MockRuntime({ files: { "/config/file.toml": 'key = "value"' } });
     expect(await rt.fs.read("/config/file.toml")).toBe('key = "value"');
   });
 
   it("abort() triggers registered exit handlers", async () => {
     const rt = new MockRuntime();
     const calls: string[] = [];
-    rt.onExit(() => { calls.push("first"); });
-    rt.onExit(() => { calls.push("second"); });
+    rt.onExit(() => {
+      calls.push("first");
+    });
+    rt.onExit(() => {
+      calls.push("second");
+    });
     await rt.abort();
     // LIFO order
     expect(calls).toEqual(["second", "first"]);
@@ -399,11 +415,10 @@ describe("loadConfig", () => {
 
   it("reads top-level and command section from override path", async () => {
     const cfgPath = join(tmp, "config.toml");
-    await writeFile(cfgPath, [
-      'apiUrl = "https://api.example.com"',
-      "[deploy]",
-      'timeout = 300',
-    ].join("\n"));
+    await writeFile(
+      cfgPath,
+      ['apiUrl = "https://api.example.com"', "[deploy]", "timeout = 300"].join("\n"),
+    );
 
     const result = await loadConfig("myctl", "deploy", { overridePath: cfgPath });
     expect(result.config).toMatchObject({ apiUrl: "https://api.example.com" });
@@ -429,15 +444,14 @@ describe("loadConfig", () => {
 
   it("file values override schema defaults", async () => {
     const cfgPath = join(tmp, "config.toml");
-    await writeFile(cfgPath, [
-      'apiUrl = "https://custom.example.com"',
-      "[deploy]",
-      "timeout = 300",
-    ].join("\n"));
+    await writeFile(
+      cfgPath,
+      ['apiUrl = "https://custom.example.com"', "[deploy]", "timeout = 300"].join("\n"),
+    );
 
     const result = await loadConfig("myctl", "deploy", {
       overridePath: cfgPath,
-      cliSchema:     { apiUrl: { type: "string", default: "https://default.example.com" } },
+      cliSchema: { apiUrl: { type: "string", default: "https://default.example.com" } },
       commandSchema: { timeout: { type: "number", default: 60 } },
     });
 
@@ -456,7 +470,7 @@ describe("loadConfig", () => {
     process.chdir(nested);
 
     const result = await loadConfig("myctl", "deploy", {
-      overridePath: join(tmp, "nonexistent-user.toml"),  // skip user file
+      overridePath: join(tmp, "nonexistent-user.toml"), // skip user file
     });
     // overridePath skips local walk — test via XDG env override instead
     expect(result).toBeDefined(); // structure is correct
@@ -466,10 +480,10 @@ describe("loadConfig", () => {
     // User config
     const userCfgDir = join(tmp, "config", "myctl");
     await mkdir(userCfgDir, { recursive: true });
-    await writeFile(join(userCfgDir, "config.toml"), [
-      'apiUrl = "https://user.example.com"',
-      'region = "us-east-1"',
-    ].join("\n"));
+    await writeFile(
+      join(userCfgDir, "config.toml"),
+      ['apiUrl = "https://user.example.com"', 'region = "us-east-1"'].join("\n"),
+    );
 
     // Repo-local config (in cwd, which has no .git above it in tmp)
     process.chdir(tmp);
@@ -491,10 +505,7 @@ describe("loadConfig", () => {
 
   it("subcommands use parent command section name", async () => {
     const cfgPath = join(tmp, "config.toml");
-    await writeFile(cfgPath, [
-      "[deploy]",
-      "timeout = 120",
-    ].join("\n"));
+    await writeFile(cfgPath, ["[deploy]", "timeout = 120"].join("\n"));
 
     // Passing "deploy" (parent command name) even for a deploy/staging subcommand
     const result = await loadConfig("myctl", "deploy", { overridePath: cfgPath });
@@ -503,11 +514,10 @@ describe("loadConfig", () => {
 
   it("strips [cliName] framework section from runtime.config", async () => {
     const cfgPath = join(tmp, "config.toml");
-    await writeFile(cfgPath, [
-      'apiUrl = "https://api.example.com"',
-      "[myctl]",
-      'pluginDirs = ["~/plugins"]',
-    ].join("\n"));
+    await writeFile(
+      cfgPath,
+      ['apiUrl = "https://api.example.com"', "[myctl]", 'pluginDirs = ["~/plugins"]'].join("\n"),
+    );
 
     const result = await loadConfig("myctl", "deploy", { overridePath: cfgPath });
     expect(result.config.apiUrl).toBe("https://api.example.com");
@@ -520,7 +530,7 @@ describe("loadConfig", () => {
     const result = await loadConfig("myctl", "deploy", {
       overridePath: cfgPath,
       cliSchema: {
-        apiUrl:  { type: "string" },
+        apiUrl: { type: "string" },
         retries: { type: "number" },
         enabled: { type: "boolean" },
       },
@@ -613,33 +623,30 @@ describe("readFrameworkConfig", () => {
 
   it("returns pluginDirs from local config", async () => {
     process.chdir(tmp);
-    await writeFile(join(tmp, ".myctl.toml"), [
-      "[myctl]",
-      'pluginDirs = ["./extra-plugins", "~/shared"]',
-    ].join("\n"));
+    await writeFile(
+      join(tmp, ".myctl.toml"),
+      ["[myctl]", 'pluginDirs = ["./extra-plugins", "~/shared"]'].join("\n"),
+    );
 
     const realTmp = await realpath(tmp);
     const cfg = await readFrameworkConfig("myctl");
     // Paths should be resolved to absolute (relative to config file dir, ~ to homedir)
-    expect(cfg["pluginDirs"]).toEqual([
-      join(realTmp, "extra-plugins"),
-      join(homedir(), "shared"),
-    ]);
+    expect(cfg["pluginDirs"]).toEqual([join(realTmp, "extra-plugins"), join(homedir(), "shared")]);
   });
 
   it("merges local over user framework config", async () => {
     const userCfgDir = join(tmp, "config", "myctl");
     await mkdir(userCfgDir, { recursive: true });
-    await writeFile(join(userCfgDir, "config.toml"), [
-      "[myctl]",
-      'pluginDirs = ["~/user-plugins"]',
-    ].join("\n"));
+    await writeFile(
+      join(userCfgDir, "config.toml"),
+      ["[myctl]", 'pluginDirs = ["~/user-plugins"]'].join("\n"),
+    );
 
     process.chdir(tmp);
-    await writeFile(join(tmp, ".myctl.toml"), [
-      "[myctl]",
-      'pluginDirs = ["./local-plugins"]',
-    ].join("\n"));
+    await writeFile(
+      join(tmp, ".myctl.toml"),
+      ["[myctl]", 'pluginDirs = ["./local-plugins"]'].join("\n"),
+    );
 
     const realTmp = await realpath(tmp);
     // Local wins; path resolved relative to local config file's directory

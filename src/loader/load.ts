@@ -35,7 +35,7 @@ export async function loadPlugin(
   if (!exported || typeof exported !== "object") {
     throw new Error(
       `Plugin "${plugin.manifest.name}" at ${absPath} has no default export. ` +
-      `Export a CommandDef as the default export.`,
+        `Export a CommandDef as the default export.`,
     );
   }
 
@@ -54,15 +54,15 @@ function checkCompatibility(plugin: DiscoveredPlugin): void {
   if (pluginMajor === null) {
     throw new Error(
       `Plugin "${plugin.manifest.name}" has an invalid frameworkVersion: ` +
-      `"${plugin.manifest.frameworkVersion}". Expected semver format (e.g. "1.0.0").`,
+        `"${plugin.manifest.frameworkVersion}". Expected semver format (e.g. "1.0.0").`,
     );
   }
 
   if (pluginMajor !== frameworkMajor) {
     throw new Error(
       `Plugin "${plugin.manifest.name}" requires framework v${pluginMajor}.x ` +
-      `but this binary uses v${FRAMEWORK_VERSION}. ` +
-      `Rebuild the plugin against the current framework version.`,
+        `but this binary uses v${FRAMEWORK_VERSION}. ` +
+        `Rebuild the plugin against the current framework version.`,
     );
   }
 }

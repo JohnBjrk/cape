@@ -13,7 +13,7 @@ export const initCommand = defineCommand({
   schema: {
     flags: {
       name: { type: "string", alias: "n", description: "Project name" },
-      yes:  { type: "boolean", alias: "y", description: "Skip confirmation prompts" },
+      yes: { type: "boolean", alias: "y", description: "Skip confirmation prompts" },
     },
   },
   async run(args, runtime) {
@@ -25,7 +25,8 @@ export const initCommand = defineCommand({
           message: "Project name",
           validate: (v) => {
             if (!v.trim()) return "Name cannot be empty";
-            if (!/^[a-z][a-z0-9-]*$/.test(v.trim())) return "Use lowercase letters, numbers, and hyphens (e.g. my-cli)";
+            if (!/^[a-z][a-z0-9-]*$/.test(v.trim()))
+              return "Use lowercase letters, numbers, and hyphens (e.g. my-cli)";
             return undefined;
           },
         });
@@ -41,7 +42,9 @@ export const initCommand = defineCommand({
     name = name.trim();
 
     if (!/^[a-z][a-z0-9-]*$/.test(name)) {
-      runtime.printError(`Error: invalid project name "${name}". Use lowercase letters, numbers, and hyphens.`);
+      runtime.printError(
+        `Error: invalid project name "${name}". Use lowercase letters, numbers, and hyphens.`,
+      );
       runtime.exit(1);
     }
 
@@ -76,15 +79,18 @@ export const initCommand = defineCommand({
 
     // Write all files in parallel
     await Promise.all([
-      Bun.write(join(projectDir, "cli.config.ts"),              cliConfigTemplate(name)),
-      Bun.write(join(projectDir, "main.ts"),                    mainTemplate(name)),
-      Bun.write(join(projectDir, "commands", "hello.ts"),       helloCommandTemplate()),
-      Bun.write(join(projectDir, "tsconfig.json"),              tsconfigContent()),
-      Bun.write(join(projectDir, ".gitignore"),                 gitignoreContent()),
+      Bun.write(join(projectDir, "cli.config.ts"), cliConfigTemplate(name)),
+      Bun.write(join(projectDir, "main.ts"), mainTemplate(name)),
+      Bun.write(join(projectDir, "commands", "hello.ts"), helloCommandTemplate()),
+      Bun.write(join(projectDir, "tsconfig.json"), tsconfigContent()),
+      Bun.write(join(projectDir, ".gitignore"), gitignoreContent()),
       // Cape runtime — enables `import { ... } from "cape"` in the project
       Bun.write(join(projectDir, "node_modules", "cape", "package.json"), capePackageJson()),
-      Bun.write(join(projectDir, "node_modules", "cape", "index.js"),     CAPE_BUNDLE || capeBundleMissing()),
-      Bun.write(join(projectDir, "node_modules", "cape", "index.d.ts"),   CAPE_TYPES),
+      Bun.write(
+        join(projectDir, "node_modules", "cape", "index.js"),
+        CAPE_BUNDLE || capeBundleMissing(),
+      ),
+      Bun.write(join(projectDir, "node_modules", "cape", "index.d.ts"), CAPE_TYPES),
     ]);
 
     runtime.output.success(`Created ${name}/`);
@@ -180,21 +186,23 @@ export const helloCommand = defineCommand({
 }
 
 function tsconfigContent(): string {
-  return JSON.stringify(
-    {
-      compilerOptions: {
-        target: "ESNext",
-        module: "ESNext",
-        moduleResolution: "bundler",
-        allowImportingTsExtensions: true,
-        noEmit: true,
-        strict: true,
-        types: ["bun-types"],
+  return (
+    JSON.stringify(
+      {
+        compilerOptions: {
+          target: "ESNext",
+          module: "ESNext",
+          moduleResolution: "bundler",
+          allowImportingTsExtensions: true,
+          noEmit: true,
+          strict: true,
+          types: ["bun-types"],
+        },
       },
-    },
-    null,
-    2,
-  ) + "\n";
+      null,
+      2,
+    ) + "\n"
+  );
 }
 
 function gitignoreContent(): string {
@@ -210,11 +218,13 @@ credentials.toml
 }
 
 function capePackageJson(): string {
-  return JSON.stringify(
-    { name: "cape", version: "0.1.0", type: "module", main: "index.js", types: "index.d.ts" },
-    null,
-    2,
-  ) + "\n";
+  return (
+    JSON.stringify(
+      { name: "cape", version: "0.1.0", type: "module", main: "index.js", types: "index.d.ts" },
+      null,
+      2,
+    ) + "\n"
+  );
 }
 
 function capeBundleMissing(): string {

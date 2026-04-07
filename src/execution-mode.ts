@@ -10,5 +10,4 @@ export type ExecutionMode = "run" | "complete";
  * const client = executionMode === "run" ? await import("./heavy-sdk.ts") : null;
  */
 export const executionMode: ExecutionMode =
-  ((globalThis as Record<string, unknown>)["__CAPE_EXECUTION_MODE__"] as ExecutionMode) ??
-  "run";
+  ((globalThis as Record<string, unknown>)["__CAPE_EXECUTION_MODE__"] as ExecutionMode) ?? "run";

@@ -10,7 +10,7 @@ export const installBinaryCommand = defineCommand({
   description: "Copy the compiled binary to ~/.<name>/bin",
   schema: {
     flags: {
-      name:   { type: "string", alias: "n", description: "CLI name (must match cli.config.ts)" },
+      name: { type: "string", alias: "n", description: "CLI name (must match cli.config.ts)" },
       binary: { type: "string", alias: "b", description: "Path to binary (default: dist/<name>)" },
     },
   },
@@ -23,9 +23,13 @@ export const installBinaryCommand = defineCommand({
       runtime.exit(1);
     }
 
-    const { name: cliName } = await resolveName(configPath, args.flags.name as string | undefined, runtime);
-    const outfile  = await resolveOutfile(configPath, cliName);
-    const binSrc   = args.flags.binary
+    const { name: cliName } = await resolveName(
+      configPath,
+      args.flags.name as string | undefined,
+      runtime,
+    );
+    const outfile = await resolveOutfile(configPath, cliName);
+    const binSrc = args.flags.binary
       ? resolve(cwd, args.flags.binary as string)
       : join(cwd, "dist", outfile);
 
@@ -38,7 +42,7 @@ export const installBinaryCommand = defineCommand({
       runtime.exit(1);
     }
 
-    const binDir  = join(homedir(), `.${cliName}`, "bin");
+    const binDir = join(homedir(), `.${cliName}`, "bin");
     const destPath = join(binDir, cliName);
 
     await mkdir(binDir, { recursive: true });
@@ -55,7 +59,7 @@ export const installBinaryCommand = defineCommand({
 
 async function resolveOutfile(configPath: string, fallback: string): Promise<string> {
   try {
-    const mod = await import(configPath) as { default?: { outfile?: string } };
+    const mod = (await import(configPath)) as { default?: { outfile?: string } };
     return mod.default?.outfile ?? fallback;
   } catch {
     return fallback;

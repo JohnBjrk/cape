@@ -3,8 +3,8 @@
 const ESC = "\x1b[";
 
 export const ansi = {
-  bold:  (s: string) => `${ESC}1m${s}${ESC}0m`,
-  dim:   (s: string) => `${ESC}2m${s}${ESC}0m`,
+  bold: (s: string) => `${ESC}1m${s}${ESC}0m`,
+  dim: (s: string) => `${ESC}2m${s}${ESC}0m`,
   reset: `${ESC}0m`,
 };
 

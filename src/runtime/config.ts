@@ -113,12 +113,12 @@ export async function loadConfig(
   const { [cliName]: _framework, ...rawConfig } = merged;
   const rawCommandConfig = (merged[commandSection] as Record<string, unknown>) ?? {};
 
-  const config        = applyDefaults(rawConfig,        options?.cliSchema);
+  const config = applyDefaults(rawConfig, options?.cliSchema);
   const commandConfig = applyDefaults(rawCommandConfig, options?.commandSchema);
 
   const errors = [
-    ...(options?.cliSchema     ? validateConfig(config,        options.cliSchema)     : []),
-    ...(options?.commandSchema ? validateConfig(commandConfig, options.commandSchema)  : []),
+    ...(options?.cliSchema ? validateConfig(config, options.cliSchema) : []),
+    ...(options?.commandSchema ? validateConfig(commandConfig, options.commandSchema) : []),
   ];
   if (errors.length > 0) throw new ConfigValidationError(errors);
 

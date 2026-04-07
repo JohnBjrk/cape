@@ -66,9 +66,7 @@ export function renderSelect(state: SelectState, opts: SelectPromptOptions): str
   const lines = [
     `${style.cyan("?")} ${style.bold(opts.message)} ${style.dim("(↑↓ to move, Enter to select)")}`,
     ...state.choices.map((choice, i) =>
-      i === state.index
-        ? `  ${style.cyan("❯")} ${style.bold(choice)}`
-        : `    ${choice}`,
+      i === state.index ? `  ${style.cyan("❯")} ${style.bold(choice)}` : `    ${choice}`,
     ),
   ];
   return lines.join("\n");
@@ -79,9 +77,7 @@ export function renderSelect(state: SelectState, opts: SelectPromptOptions): str
 // ---------------------------------------------------------------------------
 
 export async function select(opts: SelectPromptOptions): Promise<string> {
-  const defaultIndex = opts.default
-    ? Math.max(0, opts.choices.indexOf(opts.default))
-    : 0;
+  const defaultIndex = opts.default ? Math.max(0, opts.choices.indexOf(opts.default)) : 0;
 
   let state: SelectState = {
     choices: opts.choices,

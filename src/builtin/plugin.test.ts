@@ -102,13 +102,16 @@ describe("plugin list — discovery integration", () => {
   it("discovers plugins in commands dir", async () => {
     const pluginDir = join(tmp, "commands", "hello");
     await mkdir(pluginDir, { recursive: true });
-    await writeFile(join(pluginDir, "hello.plugin.toml"), [
-      `name = "hello"`,
-      `description = "Hello plugin"`,
-      `command = "./hello.ts"`,
-      `enabled = true`,
-      `frameworkVersion = "1.0.0"`,
-    ].join("\n"));
+    await writeFile(
+      join(pluginDir, "hello.plugin.toml"),
+      [
+        `name = "hello"`,
+        `description = "Hello plugin"`,
+        `command = "./hello.ts"`,
+        `enabled = true`,
+        `frameworkVersion = "1.0.0"`,
+      ].join("\n"),
+    );
 
     // Use discoverPlugins directly
     const { discoverPlugins } = await import("../loader/discover.ts");
@@ -122,13 +125,16 @@ describe("plugin list — discovery integration", () => {
   it("includeDisabled shows disabled plugins", async () => {
     const pluginDir = join(tmp, "commands", "disabled-cmd");
     await mkdir(pluginDir, { recursive: true });
-    await writeFile(join(pluginDir, "disabled-cmd.plugin.toml"), [
-      `name = "disabled-cmd"`,
-      `description = "Disabled"`,
-      `command = "./disabled-cmd.ts"`,
-      `enabled = false`,
-      `frameworkVersion = "1.0.0"`,
-    ].join("\n"));
+    await writeFile(
+      join(pluginDir, "disabled-cmd.plugin.toml"),
+      [
+        `name = "disabled-cmd"`,
+        `description = "Disabled"`,
+        `command = "./disabled-cmd.ts"`,
+        `enabled = false`,
+        `frameworkVersion = "1.0.0"`,
+      ].join("\n"),
+    );
 
     const { discoverPlugins } = await import("../loader/discover.ts");
 

@@ -52,16 +52,22 @@ const deployCmd = defineCommand({
           force: { type: "boolean", description: "Skip confirmation" },
         },
       },
-      async run(_args, runtime) { runtime.print("staging"); },
+      async run(_args, runtime) {
+        runtime.print("staging");
+      },
     }),
     defineSubcommand({
       name: "production",
       aliases: ["prod"],
       description: "Deploy to production",
-      async run(_args, runtime) { runtime.print("production"); },
+      async run(_args, runtime) {
+        runtime.print("production");
+      },
     }),
   ],
-  async run(_args, runtime) { runtime.print("deploy"); },
+  async run(_args, runtime) {
+    runtime.print("deploy");
+  },
 });
 
 const commands = [greetCmd, deployCmd];
@@ -92,7 +98,9 @@ describe("command-name slot", () => {
       name: "build",
       aliases: ["b"],
       description: "Build",
-      async run(_a, r) { r.print(""); },
+      async run(_a, r) {
+        r.print("");
+      },
     });
     const results = await resolveCompletions([withAlias], [], "b");
     expect(results).toContain("build");
@@ -149,9 +157,9 @@ describe("flag-name slot", () => {
 
   it("includes short alias candidates", async () => {
     const results = await resolveCompletions(commands, ["greet"], "-");
-    expect(results).toContain("-n");  // --name alias
-    expect(results).toContain("-s");  // --shout alias
-    expect(results).toContain("-h");  // --help alias (global)
+    expect(results).toContain("-n"); // --name alias
+    expect(results).toContain("-s"); // --shout alias
+    expect(results).toContain("-h"); // --help alias (global)
   });
 
   it("excludes already-provided non-multiple flags", async () => {
@@ -178,7 +186,9 @@ describe("flag-name slot", () => {
           label: { type: "string", multiple: true, description: "A label" },
         },
       },
-      async run(_a, r) { r.print(""); },
+      async run(_a, r) {
+        r.print("");
+      },
     });
     // --label provided once already
     const results = await resolveCompletions([withMultiple], ["tag", "--label", "v1"], "--");
@@ -241,10 +251,16 @@ describe("flag-value slot", () => {
           },
         },
       },
-      async run(_a, r) { r.print(""); },
+      async run(_a, r) {
+        r.print("");
+      },
     });
 
-    const results = await resolveCompletions([cmd], ["env", "--account", "my-account", "--region"], "us");
+    const results = await resolveCompletions(
+      [cmd],
+      ["env", "--account", "my-account", "--region"],
+      "us",
+    );
     expect(results).toEqual(["us-east-1"]);
     expect(capturedCtx?.partial).toBe("us");
     expect(capturedCtx?.flags["account"]).toBe("my-account");
@@ -263,14 +279,16 @@ describe("flag-value slot", () => {
               type: "dynamic",
               timeoutMs: 10, // very short timeout
               fetch: async () => {
-                await new Promise(r => setTimeout(r, 500)); // simulate slow API
+                await new Promise((r) => setTimeout(r, 500)); // simulate slow API
                 return ["prod", "staging"];
               },
             },
           },
         },
       },
-      async run(_a, r) { r.print(""); },
+      async run(_a, r) {
+        r.print("");
+      },
     });
 
     const results = await resolveCompletions([cmd], ["slow", "--env"], "");

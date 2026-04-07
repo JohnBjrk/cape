@@ -11,8 +11,8 @@ import { NonTtyError, PromptCancelledError } from "./types.ts";
 export interface AutocompleteState {
   query: string;
   queryCursor: number;
-  items: string[];       // currently visible (filtered or fetched) items
-  index: number;         // highlighted item index, -1 = none
+  items: string[]; // currently visible (filtered or fetched) items
+  index: number; // highlighted item index, -1 = none
   loading: boolean;
   done: boolean;
   cancelled: boolean;
@@ -20,9 +20,7 @@ export interface AutocompleteState {
   defaultValue?: string;
 }
 
-type AutocompleteAction =
-  | { type: "key"; key: Key }
-  | { type: "items"; items: string[] };
+type AutocompleteAction = { type: "key"; key: Key } | { type: "items"; items: string[] };
 
 export function autocompleteReducer(
   state: AutocompleteState,
@@ -32,7 +30,12 @@ export function autocompleteReducer(
 
   if (action.type === "items") {
     // Snap selection to first item so Enter always picks the top match
-    return { ...state, items: action.items, index: action.items.length > 0 ? 0 : -1, loading: false };
+    return {
+      ...state,
+      items: action.items,
+      index: action.items.length > 0 ? 0 : -1,
+      loading: false,
+    };
   }
 
   const { key } = action;
@@ -51,9 +54,10 @@ export function autocompleteReducer(
 
     case "tab": {
       // Tab: accept highlighted item or first item
-      const value = state.index >= 0
-        ? (state.items[state.index] ?? state.query)
-        : (state.items[0] ?? state.query);
+      const value =
+        state.index >= 0
+          ? (state.items[state.index] ?? state.query)
+          : (state.items[0] ?? state.query);
       return { ...state, query: value, queryCursor: value.length, index: -1 };
     }
 
@@ -143,14 +147,12 @@ export function renderAutocomplete(
   // When query is empty and a default exists, show the default as a dim placeholder.
   const queryDisplay = state.query || (opts.default ? style.dim(opts.default) : "");
   const inputLine = `${prefix} ${style.bold(opts.message)} ${queryDisplay}`;
-  const hintLine  = `  ${style.dim("(type to filter, ↑↓ navigate, Tab/Enter to select)")}`;
+  const hintLine = `  ${style.dim("(type to filter, ↑↓ navigate, Tab/Enter to select)")}`;
 
   const visible = state.items.slice(0, MAX_VISIBLE);
   const itemLines = visible.map((item, i) => {
     const isHighlighted = i === state.index;
-    return isHighlighted
-      ? `  ${style.cyan("❯")} ${style.bold(item)}`
-      : `    ${item}`;
+    return isHighlighted ? `  ${style.cyan("❯")} ${style.bold(item)}` : `    ${item}`;
   });
 
   if (visible.length === 0 && !state.loading) {

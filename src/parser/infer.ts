@@ -1,4 +1,11 @@
-import type { ArgSchema, ParsedArgs, CompletionSource, ConfigSchema, ConfigField, ConfigScalarField } from "./types.ts";
+import type {
+  ArgSchema,
+  ParsedArgs,
+  CompletionSource,
+  ConfigSchema,
+  ConfigField,
+  ConfigScalarField,
+} from "./types.ts";
 
 /**
  * The shape of a single flag definition — mirrors ArgSchema flags entry
@@ -16,11 +23,13 @@ export type FlagDef = {
 };
 
 /** Maps "boolean" | "string" | "number" to their TypeScript types. */
-type FlagBaseType<T extends "boolean" | "string" | "number"> =
-  T extends "boolean" ? boolean :
-  T extends "string"  ? string  :
-  T extends "number"  ? number  :
-  never;
+type FlagBaseType<T extends "boolean" | "string" | "number"> = T extends "boolean"
+  ? boolean
+  : T extends "string"
+    ? string
+    : T extends "number"
+      ? number
+      : never;
 
 /**
  * Infers the TypeScript type of a single parsed flag value.
@@ -31,16 +40,15 @@ type FlagBaseType<T extends "boolean" | "string" | "number"> =
  * - default provided       → never undefined
  * - otherwise              → value | undefined
  */
-type InferFlagValue<F extends FlagDef> =
-  F["multiple"] extends true
-    ? FlagBaseType<F["type"]>[]
-    : F["type"] extends "boolean"
-      ? boolean
-      : F["required"] extends true
+type InferFlagValue<F extends FlagDef> = F["multiple"] extends true
+  ? FlagBaseType<F["type"]>[]
+  : F["type"] extends "boolean"
+    ? boolean
+    : F["required"] extends true
+      ? FlagBaseType<F["type"]>
+      : F extends { default: NonNullable<unknown> }
         ? FlagBaseType<F["type"]>
-        : F extends { default: NonNullable<unknown> }
-          ? FlagBaseType<F["type"]>
-          : FlagBaseType<F["type"]> | undefined;
+        : FlagBaseType<F["type"]> | undefined;
 
 /** Infers the typed flags record from a flags schema object. */
 type InferFlags<F extends Record<string, FlagDef>> = {
@@ -62,25 +70,29 @@ export type InferParsedArgs<S extends ArgSchema> =
 
 type ScalarType = "string" | "number" | "boolean";
 
-type ConfigBaseType<T extends ScalarType> =
-  T extends "string"  ? string  :
-  T extends "number"  ? number  :
-  T extends "boolean" ? boolean :
-  never;
+type ConfigBaseType<T extends ScalarType> = T extends "string"
+  ? string
+  : T extends "number"
+    ? number
+    : T extends "boolean"
+      ? boolean
+      : never;
 
 /**
  * Infers the element type for an array field — same logic as InferConfigValue
  * but without the optional/required wrapping (the array itself carries that).
  * Supports scalars, objects, and nested arrays.
  */
-type InferArrayItemType<F extends ConfigField> =
-  F extends { type: "object"; fields: infer FS extends ConfigSchema }
-    ? InferConfig<FS>
-    : F extends { type: "array"; items: infer I extends ConfigField }
-      ? InferArrayItemType<I>[]
-      : F extends ConfigScalarField
-        ? ConfigBaseType<F["type"]>
-        : never;
+type InferArrayItemType<F extends ConfigField> = F extends {
+  type: "object";
+  fields: infer FS extends ConfigSchema;
+}
+  ? InferConfig<FS>
+  : F extends { type: "array"; items: infer I extends ConfigField }
+    ? InferArrayItemType<I>[]
+    : F extends ConfigScalarField
+      ? ConfigBaseType<F["type"]>
+      : never;
 
 /**
  * Infers the TypeScript type of a single config value.
@@ -90,23 +102,24 @@ type InferArrayItemType<F extends ConfigField> =
  * - default provided → value is always present (never undefined)
  * - no default       → value may be undefined (key absent from all config files)
  */
-type InferConfigValue<F extends ConfigField> =
-  F extends { type: "object"; fields: infer FS extends ConfigSchema }
-    ? InferConfig<FS>
-    : F extends { type: "array"; items: infer I extends ConfigField }
-      ? InferArrayItemType<I>[]
-      : F extends ConfigScalarField & { default: NonNullable<unknown> }
-        ? ConfigBaseType<F["type"]>
-        : F extends ConfigScalarField
-          ? ConfigBaseType<F["type"]> | undefined
-          : never;
+type InferConfigValue<F extends ConfigField> = F extends {
+  type: "object";
+  fields: infer FS extends ConfigSchema;
+}
+  ? InferConfig<FS>
+  : F extends { type: "array"; items: infer I extends ConfigField }
+    ? InferArrayItemType<I>[]
+    : F extends ConfigScalarField & { default: NonNullable<unknown> }
+      ? ConfigBaseType<F["type"]>
+      : F extends ConfigScalarField
+        ? ConfigBaseType<F["type"]> | undefined
+        : never;
 
 /**
  * Infers a typed config record from a ConfigSchema.
  * When the schema is empty (no config declared), falls back to
  * Record<string, unknown> so untyped access still compiles.
  */
-export type InferConfig<CC extends ConfigSchema> =
-  [keyof CC] extends [never]
-    ? Record<string, unknown>
-    : { [K in keyof CC]: InferConfigValue<CC[K]> };
+export type InferConfig<CC extends ConfigSchema> = [keyof CC] extends [never]
+  ? Record<string, unknown>
+  : { [K in keyof CC]: InferConfigValue<CC[K]> };

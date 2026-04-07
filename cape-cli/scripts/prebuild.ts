@@ -13,10 +13,10 @@ import { join, dirname } from "node:path";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 
-const repoRoot       = join(import.meta.dir, "../../");
-const srcEntry       = join(repoRoot, "src/index.ts");
-const outPath        = join(repoRoot, "cape-cli/src/embedded.ts");
-const srcEmbedPath   = join(repoRoot, "src/embedded.ts");
+const repoRoot = join(import.meta.dir, "../../");
+const srcEntry = join(repoRoot, "src/index.ts");
+const outPath = join(repoRoot, "cape-cli/src/embedded.ts");
+const srcEmbedPath = join(repoRoot, "src/embedded.ts");
 
 // ---------------------------------------------------------------------------
 // 1. Bundle the cape source as ESM
@@ -37,7 +37,10 @@ if (!result.success) {
 }
 
 const [output] = result.outputs;
-if (!output) { console.error("No build output"); process.exit(1); }
+if (!output) {
+  console.error("No build output");
+  process.exit(1);
+}
 const bundle = await output.text();
 
 // ---------------------------------------------------------------------------
@@ -50,17 +53,24 @@ const dtsOutDir = await mkdtemp(join(tmpdir(), "cape-dts-"));
 
 // Write a temporary tsconfig for declaration-only emit
 const tsconfigPath = join(repoRoot, "tsconfig.dts.json");
-await writeFile(tsconfigPath, JSON.stringify({
-  extends: "./tsconfig.json",
-  compilerOptions: {
-    noEmit: false,
-    emitDeclarationOnly: true,
-    declaration: true,
-    outDir: dtsOutDir,
-    rootDir: "./src",
-  },
-  include: ["src/index.ts"],
-}, null, 2));
+await writeFile(
+  tsconfigPath,
+  JSON.stringify(
+    {
+      extends: "./tsconfig.json",
+      compilerOptions: {
+        noEmit: false,
+        emitDeclarationOnly: true,
+        declaration: true,
+        outDir: dtsOutDir,
+        rootDir: "./src",
+      },
+      include: ["src/index.ts"],
+    },
+    null,
+    2,
+  ),
+);
 
 try {
   const tsc = Bun.spawnSync(["bunx", "tsc", "-p", tsconfigPath], {
@@ -154,7 +164,7 @@ async function bundleDeclarations(dtsDir: string): Promise<string> {
     }
 
     // Strip local import / re-export lines, keep all declaration lines
-    const kept = content.split("\n").filter(line => {
+    const kept = content.split("\n").filter((line) => {
       const t = line.trim();
       // import ... from "./..."
       if (/^import\b/.test(t) && /from\s+['"]\./.test(t)) return false;

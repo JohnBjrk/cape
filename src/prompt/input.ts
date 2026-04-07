@@ -33,12 +33,18 @@ export function parseKey(buf: number[]): { key: Key; consumed: number } | null {
 
       const b2 = buf[2]!;
       switch (b2) {
-        case 65: return { key: { type: "up" },    consumed: 3 }; // ESC [ A
-        case 66: return { key: { type: "down" },  consumed: 3 }; // ESC [ B
-        case 67: return { key: { type: "right" }, consumed: 3 }; // ESC [ C
-        case 68: return { key: { type: "left" },  consumed: 3 }; // ESC [ D
-        case 72: return { key: { type: "home" },  consumed: 3 }; // ESC [ H
-        case 70: return { key: { type: "end" },   consumed: 3 }; // ESC [ F
+        case 65:
+          return { key: { type: "up" }, consumed: 3 }; // ESC [ A
+        case 66:
+          return { key: { type: "down" }, consumed: 3 }; // ESC [ B
+        case 67:
+          return { key: { type: "right" }, consumed: 3 }; // ESC [ C
+        case 68:
+          return { key: { type: "left" }, consumed: 3 }; // ESC [ D
+        case 72:
+          return { key: { type: "home" }, consumed: 3 }; // ESC [ H
+        case 70:
+          return { key: { type: "end" }, consumed: 3 }; // ESC [ F
         case 51: // ESC [ 3 ~ → delete
           if (buf.length < 4) return null;
           if (buf[3] === 126) return { key: { type: "delete" }, consumed: 4 };
@@ -61,12 +67,18 @@ export function parseKey(buf: number[]): { key: Key; consumed: number } | null {
       if (buf.length < 3) return null;
       const b2 = buf[2]!;
       switch (b2) {
-        case 65: return { key: { type: "up" },    consumed: 3 };
-        case 66: return { key: { type: "down" },  consumed: 3 };
-        case 67: return { key: { type: "right" }, consumed: 3 };
-        case 68: return { key: { type: "left" },  consumed: 3 };
-        case 72: return { key: { type: "home" },  consumed: 3 };
-        case 70: return { key: { type: "end" },   consumed: 3 };
+        case 65:
+          return { key: { type: "up" }, consumed: 3 };
+        case 66:
+          return { key: { type: "down" }, consumed: 3 };
+        case 67:
+          return { key: { type: "right" }, consumed: 3 };
+        case 68:
+          return { key: { type: "left" }, consumed: 3 };
+        case 72:
+          return { key: { type: "home" }, consumed: 3 };
+        case 70:
+          return { key: { type: "end" }, consumed: 3 };
       }
     }
 
@@ -94,7 +106,10 @@ export function parseKeys(chunk: Uint8Array | Buffer): Key[] {
 
   while (offset < buf.length) {
     const result = parseKey(buf.slice(offset));
-    if (!result) { offset++; continue; }
+    if (!result) {
+      offset++;
+      continue;
+    }
     keys.push(result.key);
     offset += result.consumed;
   }

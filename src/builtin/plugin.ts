@@ -63,10 +63,10 @@ function listSubcommand(cliName: string, codePluginDirs: string[]): SubcommandDe
 
       runtime.output.table(
         plugins.map((p) => ({
-          Name:        p.manifest.name,
+          Name: p.manifest.name,
           Description: p.manifest.description,
-          Location:    p.pluginDir,
-          Status:      p.manifest.enabled ? "enabled" : "disabled",
+          Location: p.pluginDir,
+          Status: p.manifest.enabled ? "enabled" : "disabled",
         })),
       );
     },
@@ -77,13 +77,17 @@ function listSubcommand(cliName: string, codePluginDirs: string[]): SubcommandDe
 // plugin create
 // ---------------------------------------------------------------------------
 
-function createSubcommand(cliName: string, version: string, configSchema: ConfigSchema): SubcommandDef {
+function createSubcommand(
+  cliName: string,
+  version: string,
+  configSchema: ConfigSchema,
+): SubcommandDef {
   return {
     name: "create",
     description: "Scaffold a new plugin",
     schema: {
       flags: {
-        name:        { type: "string", alias: "n", description: "Plugin name" },
+        name: { type: "string", alias: "n", description: "Plugin name" },
         description: { type: "string", alias: "d", description: "Plugin description" },
       },
     },
@@ -93,7 +97,8 @@ function createSubcommand(cliName: string, version: string, configSchema: Config
         "Plugin name",
         (v) => {
           if (!v.trim()) return "Name cannot be empty";
-          if (!/^[a-z][a-z0-9-]*$/.test(v.trim())) return "Use lowercase letters, numbers, and hyphens";
+          if (!/^[a-z][a-z0-9-]*$/.test(v.trim()))
+            return "Use lowercase letters, numbers, and hyphens";
           return undefined;
         },
         runtime,
@@ -109,9 +114,7 @@ function createSubcommand(cliName: string, version: string, configSchema: Config
       const tomlDir = await findLocalConfigDir(cliName);
       const options = await buildLocationOptions(cliName, tomlDir);
 
-      const chosen = options.length === 1
-        ? options[0]!
-        : await pickLocation(options, runtime);
+      const chosen = options.length === 1 ? options[0]! : await pickLocation(options, runtime);
 
       // Write files
       const pluginDir = join(chosen.resolvedDir, pluginName);
@@ -140,12 +143,13 @@ function createSubcommand(cliName: string, version: string, configSchema: Config
       ]);
 
       runtime.output.success(`Created plugin "${pluginName}"`);
-      const displayDir = tomlDir && pluginDir.startsWith(tomlDir)
-        ? `./${relative(tomlDir, pluginDir)}/`
-        : pluginDir;
+      const displayDir =
+        tomlDir && pluginDir.startsWith(tomlDir) ? `./${relative(tomlDir, pluginDir)}/` : pluginDir;
       runtime.print(`  Location: ${displayDir}`);
       if (chosen.tomlDir) {
-        runtime.print(`  Types:    .${cliName}/  (commit this folder — run '${cliName} plugin init' to update)`);
+        runtime.print(
+          `  Types:    .${cliName}/  (commit this folder — run '${cliName} plugin init' to update)`,
+        );
       }
       runtime.print("");
       runtime.print("No registration needed — auto-discovered the next time you run the CLI.");
@@ -169,7 +173,10 @@ interface LocationOption {
   tomlDir: string | null;
 }
 
-async function buildLocationOptions(cliName: string, tomlDir: string | null): Promise<LocationOption[]> {
+async function buildLocationOptions(
+  cliName: string,
+  tomlDir: string | null,
+): Promise<LocationOption[]> {
   const options: LocationOption[] = [];
 
   if (tomlDir) {
@@ -182,7 +189,9 @@ async function buildLocationOptions(cliName: string, tomlDir: string | null): Pr
 
     // Additional dirs from the local config file only
     const localDoc = Bun.TOML.parse(
-      await Bun.file(join(tomlDir, `.${cliName}.toml`)).text().catch(() => ""),
+      await Bun.file(join(tomlDir, `.${cliName}.toml`))
+        .text()
+        .catch(() => ""),
     ) as Record<string, unknown>;
     const frameworkSection = (localDoc[cliName] as Record<string, unknown>) ?? {};
     const configuredDirs = (frameworkSection["pluginDirs"] as string[] | undefined) ?? [];
@@ -230,7 +239,11 @@ async function pickLocation(options: LocationOption[], runtime: Runtime): Promis
 // Plugin init subcommand + type generation
 // ---------------------------------------------------------------------------
 
-function initSubcommand(cliName: string, version: string, configSchema: ConfigSchema): SubcommandDef {
+function initSubcommand(
+  cliName: string,
+  version: string,
+  configSchema: ConfigSchema,
+): SubcommandDef {
   return {
     name: "init",
     description: `Generate .${cliName}/ type helpers for plugins in this repository`,
@@ -263,16 +276,20 @@ async function generatePluginTypes(
   const outDir = join(tomlDir, `.${cliName}`);
   await mkdir(outDir, { recursive: true });
   await Promise.all([
-    Bun.write(join(outDir, "cape.d.ts"), CAPE_TYPES || "// Run `bun run cape:prebuild` then rebuild your CLI to populate.\n"),
+    Bun.write(
+      join(outDir, "cape.d.ts"),
+      CAPE_TYPES || "// Run `bun run cape:prebuild` then rebuild your CLI to populate.\n",
+    ),
     Bun.write(join(outDir, "index.ts"), pluginIndexTemplate(cliName, version, schema)),
   ]);
 }
 
 function pluginIndexTemplate(cliName: string, version: string, schema: ConfigSchema): string {
   const interfaceBody = schemaToTypeInterface(schema, 1);
-  const emptyNote = Object.keys(schema).length === 0
-    ? `  // No global config defined — add fields to ${cliName}'s CliConfig.config schema.\n`
-    : "";
+  const emptyNote =
+    Object.keys(schema).length === 0
+      ? `  // No global config defined — add fields to ${cliName}'s CliConfig.config schema.\n`
+      : "";
   return [
     `// Auto-generated by ${cliName} v${version} — do not edit.`,
     `// Regenerate with: ${cliName} plugin init`,
@@ -367,7 +384,8 @@ function schemaToTypeInterface(schema: ConfigSchema, depth: number): string {
       if (field.type === "array") {
         return `${doc}${pad}${key}: ${arrayItemType(field.items)}[];`;
       }
-      const base = field.type === "number" ? "number" : field.type === "boolean" ? "boolean" : "string";
+      const base =
+        field.type === "number" ? "number" : field.type === "boolean" ? "boolean" : "string";
       const opt = field.default === undefined ? " | undefined" : "";
       return `${doc}${pad}${key}: ${base}${opt};`;
     })
@@ -402,9 +420,9 @@ function pluginTomlTemplate(name: string, description: string): string {
 function pluginTsTemplate(name: string, description: string, importPath: string | null): string {
   const importLine = importPath
     ? `import { defineCommand } from "${importPath}";`
-    // User-level plugins have no access to the CLI package, so we inline a
-    // no-op defineCommand for IDE type support. runtime.config is untyped.
-    : `// defineCommand is a no-op identity helper — no package install needed.\n` +
+    : // User-level plugins have no access to the CLI package, so we inline a
+      // no-op defineCommand for IDE type support. runtime.config is untyped.
+      `// defineCommand is a no-op identity helper — no package install needed.\n` +
       `// eslint-disable-next-line @typescript-eslint/no-explicit-any\n` +
       `const defineCommand = (def: any) => def;`;
 
@@ -453,7 +471,10 @@ async function resolveArg(
 ): Promise<string> {
   if (value !== undefined) {
     const err = validate(value);
-    if (err) { runtime.printError(`${message}: ${err}`); runtime.exit(1); }
+    if (err) {
+      runtime.printError(`${message}: ${err}`);
+      runtime.exit(1);
+    }
     return value.trim();
   }
   try {

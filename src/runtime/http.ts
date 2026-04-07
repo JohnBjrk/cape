@@ -100,12 +100,12 @@ export function createHttp(signal: AbortSignal): HttpInterface {
   }
 
   return {
-    get:    (url, opts)        => jsonRequest("GET",    url, undefined, opts),
-    post:   (url, body, opts)  => jsonRequest("POST",   url, body,      opts),
-    put:    (url, body, opts)  => jsonRequest("PUT",    url, body,      opts),
-    patch:  (url, body, opts)  => jsonRequest("PATCH",  url, body,      opts),
-    delete: (url, opts)        => jsonRequest("DELETE", url, undefined, opts),
-    fetch:  rawFetch,
+    get: (url, opts) => jsonRequest("GET", url, undefined, opts),
+    post: (url, body, opts) => jsonRequest("POST", url, body, opts),
+    put: (url, body, opts) => jsonRequest("PUT", url, body, opts),
+    patch: (url, body, opts) => jsonRequest("PATCH", url, body, opts),
+    delete: (url, opts) => jsonRequest("DELETE", url, undefined, opts),
+    fetch: rawFetch,
     HttpError,
   };
 }
@@ -132,21 +132,25 @@ export function createMockHttp(): HttpInterface & {
   function resolve<T>(method: string, url: string, body?: unknown): Promise<T> {
     calls.push({ method, url, body });
     if (mocked.has(url)) return Promise.resolve(mocked.get(url) as T);
-    return Promise.reject(new HttpError(404, "Not Found", url, `No mock configured for ${method} ${url}`));
+    return Promise.reject(
+      new HttpError(404, "Not Found", url, `No mock configured for ${method} ${url}`),
+    );
   }
 
   return {
-    get:    (url)        => resolve("GET",    url),
-    post:   (url, body)  => resolve("POST",   url, body),
-    put:    (url, body)  => resolve("PUT",    url, body),
-    patch:  (url, body)  => resolve("PATCH",  url, body),
-    delete: (url)        => resolve("DELETE", url),
-    fetch:  (url, init)  => {
+    get: (url) => resolve("GET", url),
+    post: (url, body) => resolve("POST", url, body),
+    put: (url, body) => resolve("PUT", url, body),
+    patch: (url, body) => resolve("PATCH", url, body),
+    delete: (url) => resolve("DELETE", url),
+    fetch: (url, init) => {
       calls.push({ method: init?.method ?? "GET", url });
       return Promise.reject(new Error("Use mockJson() for fetch mocking"));
     },
     HttpError,
     calls,
-    mockJson(url: string, response: unknown) { mocked.set(url, response); },
+    mockJson(url: string, response: unknown) {
+      mocked.set(url, response);
+    },
   };
 }

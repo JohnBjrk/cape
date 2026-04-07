@@ -3,9 +3,9 @@
 const E = "\x1b[";
 
 export const cursor = {
-  up:   (n = 1) => `${E}${n}A`,
+  up: (n = 1) => `${E}${n}A`,
   down: (n = 1) => `${E}${n}B`,
-  col:  (n: number) => `${E}${n}G`,
+  col: (n: number) => `${E}${n}G`,
   hide: `${E}?25l`,
   show: `${E}?25h`,
 };
@@ -18,13 +18,13 @@ export const erase = {
 };
 
 export const style = {
-  bold:   (s: string) => `${E}1m${s}${E}0m`,
-  dim:    (s: string) => `${E}2m${s}${E}0m`,
-  cyan:   (s: string) => `${E}36m${s}${E}0m`,
-  green:  (s: string) => `${E}32m${s}${E}0m`,
-  red:    (s: string) => `${E}31m${s}${E}0m`,
+  bold: (s: string) => `${E}1m${s}${E}0m`,
+  dim: (s: string) => `${E}2m${s}${E}0m`,
+  cyan: (s: string) => `${E}36m${s}${E}0m`,
+  green: (s: string) => `${E}32m${s}${E}0m`,
+  red: (s: string) => `${E}31m${s}${E}0m`,
   yellow: (s: string) => `${E}33m${s}${E}0m`,
-  reset:  `${E}0m`,
+  reset: `${E}0m`,
 };
 
 /**

@@ -11,12 +11,20 @@ type CompletionSlot =
   | { kind: "command" }
   | { kind: "subcommand"; command: CommandDef }
   | { kind: "flag-name"; schema: ArgSchema; provided: Set<string> }
-  | { kind: "flag-value"; flagName: string; source: CompletionSource | undefined; ctx: CompletionCtx }
+  | {
+      kind: "flag-value";
+      flagName: string;
+      source: CompletionSource | undefined;
+      ctx: CompletionCtx;
+    }
   | { kind: "positional"; index: number; source: CompletionSource | undefined; ctx: CompletionCtx };
 
 const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 
-interface CacheEntry { expires: number; values: string[] }
+interface CacheEntry {
+  expires: number;
+  values: string[];
+}
 
 /**
  * Given the tokens already on the command line (before the cursor) and the
@@ -41,11 +49,7 @@ export async function resolveCompletions(
 // Slot resolution — figures out what the cursor is completing
 // ---------------------------------------------------------------------------
 
-function computeSlot(
-  commands: CommandDef[],
-  argv: string[],
-  partial: string,
-): CompletionSlot {
+function computeSlot(commands: CommandDef[], argv: string[], partial: string): CompletionSlot {
   // Pass 1: find command name in argv
   const cmdResult = freeValueAt(argv, 0, globalSchema);
   const command = cmdResult ? findByName(commands, cmdResult.value) : undefined;
@@ -123,13 +127,13 @@ async function fetchCandidates(
   switch (slot.kind) {
     case "command":
       return filterPrefix(
-        commands.flatMap(c => [c.name, ...(c.aliases ?? [])]),
+        commands.flatMap((c) => [c.name, ...(c.aliases ?? [])]),
         partial,
       );
 
     case "subcommand":
       return filterPrefix(
-        (slot.command.subcommands ?? []).flatMap(s => [s.name, ...(s.aliases ?? [])]),
+        (slot.command.subcommands ?? []).flatMap((s) => [s.name, ...(s.aliases ?? [])]),
         partial,
       );
 
@@ -137,10 +141,16 @@ async function fetchCandidates(
       return filterPrefix(flagNameCandidates(slot.schema, slot.provided), partial);
 
     case "flag-value":
-      return filterPrefix(await fetchSource(slot.source, slot.ctx, `flag:${slot.flagName}`, cliName), partial);
+      return filterPrefix(
+        await fetchSource(slot.source, slot.ctx, `flag:${slot.flagName}`, cliName),
+        partial,
+      );
 
     case "positional":
-      return filterPrefix(await fetchSource(slot.source, slot.ctx, `pos:${slot.index}`, cliName), partial);
+      return filterPrefix(
+        await fetchSource(slot.source, slot.ctx, `pos:${slot.index}`, cliName),
+        partial,
+      );
   }
 }
 
@@ -189,7 +199,7 @@ async function readCache(path: string): Promise<string[] | undefined> {
   const f = Bun.file(path);
   if (!(await f.exists())) return undefined;
   try {
-    const entry = await f.json() as CacheEntry;
+    const entry = (await f.json()) as CacheEntry;
     return entry.expires > Date.now() ? entry.values : undefined;
   } catch {
     return undefined;
@@ -257,7 +267,10 @@ function walkArgv(
     }
 
     const name = canonicalize(arg, flags);
-    if (!name) { i++; continue; }
+    if (!name) {
+      i++;
+      continue;
+    }
 
     const def = flags[name];
     if (!def || def.type === "boolean") {
@@ -291,8 +304,15 @@ function countPositionals(argv: string[], schema: ArgSchema): number {
   while (i < argv.length) {
     const arg = argv[i]!;
     if (arg === "--") break;
-    if (!arg.startsWith("-")) { count++; i++; continue; }
-    if (arg.includes("=")) { i++; continue; }
+    if (!arg.startsWith("-")) {
+      count++;
+      i++;
+      continue;
+    }
+    if (arg.includes("=")) {
+      i++;
+      continue;
+    }
     const name = canonicalize(arg, flags);
     const def = name ? flags[name] : undefined;
     i += def && def.type !== "boolean" ? 2 : 1;
@@ -311,7 +331,10 @@ function collectFlags(argv: string[], schema: ArgSchema): Record<string, unknown
   while (i < argv.length) {
     const arg = argv[i]!;
     if (arg === "--") break;
-    if (!arg.startsWith("-")) { i++; continue; }
+    if (!arg.startsWith("-")) {
+      i++;
+      continue;
+    }
 
     const eqIdx = arg.indexOf("=");
     if (eqIdx !== -1) {
@@ -322,9 +345,15 @@ function collectFlags(argv: string[], schema: ArgSchema): Record<string, unknown
     }
 
     const name = canonicalize(arg, flags);
-    if (!name) { i++; continue; }
+    if (!name) {
+      i++;
+      continue;
+    }
     const def = flags[name];
-    if (!def) { i++; continue; }
+    if (!def) {
+      i++;
+      continue;
+    }
 
     if (def.type === "boolean") {
       result[name] = true;
@@ -373,7 +402,10 @@ function freeValueAt(
     const arg = argv[i]!;
     if (arg === "--") break;
     if (!arg.startsWith("-")) return { value: arg, index: i };
-    if (arg.includes("=")) { i++; continue; }
+    if (arg.includes("=")) {
+      i++;
+      continue;
+    }
     const name = canonicalize(arg, flags);
     const def = name ? flags[name] : undefined;
     i += def && def.type !== "boolean" ? 2 : 1;
@@ -385,12 +417,12 @@ function findByName<T extends { name: string; aliases?: string[] }>(
   items: T[],
   name: string,
 ): T | undefined {
-  return items.find(item => item.name === name || (item.aliases ?? []).includes(name));
+  return items.find((item) => item.name === name || (item.aliases ?? []).includes(name));
 }
 
 function filterPrefix(values: string[], prefix: string): string[] {
   if (!prefix) return values;
-  return values.filter(v => v.startsWith(prefix));
+  return values.filter((v) => v.startsWith(prefix));
 }
 
 function lookupFlag(schema: ArgSchema, canonical: string): FlagDef | undefined {

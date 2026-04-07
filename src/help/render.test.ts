@@ -15,7 +15,7 @@ const generateSchema: ArgSchema = {
 
 const certSchema: ArgSchema = {
   flags: {
-    ca:   { type: "string", description: "Path to CA certificate" },
+    ca: { type: "string", description: "Path to CA certificate" },
     days: { type: "number", description: "Validity period in days", default: 365 },
   },
 };
@@ -25,7 +25,7 @@ describe("renderHelp — root level", () => {
     level: "root",
     commands: [
       { name: "generate", description: "Generate certificates and keys" },
-      { name: "deploy",   description: "Deploy services",  aliases: ["d"] },
+      { name: "deploy", description: "Deploy services", aliases: ["d"] },
     ],
   };
 
@@ -68,7 +68,11 @@ describe("renderHelp — root level", () => {
 describe("renderHelp — command level", () => {
   const ctx: HelpContext = {
     level: "command",
-    command: { name: "generate", description: "Generate certificates and keys", schema: generateSchema },
+    command: {
+      name: "generate",
+      description: "Generate certificates and keys",
+      schema: generateSchema,
+    },
     subcommands: [{ name: "certificate", description: "Generate a TLS certificate" }],
   };
 
@@ -111,8 +115,16 @@ describe("renderHelp — command level", () => {
 describe("renderHelp — subcommand level", () => {
   const ctx: HelpContext = {
     level: "subcommand",
-    command:    { name: "generate",    description: "Generate certificates and keys", schema: generateSchema },
-    subcommand: { name: "certificate", description: "Generate a TLS certificate",     schema: certSchema },
+    command: {
+      name: "generate",
+      description: "Generate certificates and keys",
+      schema: generateSchema,
+    },
+    subcommand: {
+      name: "certificate",
+      description: "Generate a TLS certificate",
+      schema: certSchema,
+    },
   };
 
   it("shows both command and subcommand name in header", () => {
@@ -159,8 +171,14 @@ describe("renderHelp — subcommand level", () => {
 
 describe("renderHelp — multiple flag", () => {
   it("appends ... to the type hint for multiple flags", () => {
-    const schema: ArgSchema = { flags: { service: { type: "string", multiple: true, description: "Target service" } } };
-    const ctx: HelpContext = { level: "command", command: { name: "deploy", description: "Deploy", schema }, subcommands: [] };
+    const schema: ArgSchema = {
+      flags: { service: { type: "string", multiple: true, description: "Target service" } },
+    };
+    const ctx: HelpContext = {
+      level: "command",
+      command: { name: "deploy", description: "Deploy", schema },
+      subcommands: [],
+    };
     const out = renderHelp(cli, ctx, noColor);
     expect(out).toContain("--service <string>...");
   });

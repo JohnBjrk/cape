@@ -1,0 +1,4 @@
+node_modules/
+# Generated files — do not format
+src/embedded.ts
+cape-cli/src/embedded.ts

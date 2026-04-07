@@ -12,11 +12,7 @@ export interface ConfirmState {
   cancelled: boolean;
 }
 
-export function confirmReducer(
-  state: ConfirmState,
-  key: Key,
-  defaultValue: boolean,
-): ConfirmState {
+export function confirmReducer(state: ConfirmState, key: Key, defaultValue: boolean): ConfirmState {
   if (state.done || state.cancelled) return state;
 
   switch (key.type) {
@@ -29,7 +25,7 @@ export function confirmReducer(
 
     case "char": {
       const ch = key.char.toLowerCase();
-      if (ch === "y") return { answer: true,  done: true, cancelled: false };
+      if (ch === "y") return { answer: true, done: true, cancelled: false };
       if (ch === "n") return { answer: false, done: true, cancelled: false };
       return state;
     }

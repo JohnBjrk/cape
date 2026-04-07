@@ -31,7 +31,7 @@ try {
   process.exit(1);
 }
 
-const entry  = resolve(configDir, config.entry  ?? "main.ts");
+const entry = resolve(configDir, config.entry ?? "main.ts");
 const outfile = resolve(configDir, config.outfile ?? config.name);
 const displayName = config.displayName ?? config.name;
 
@@ -39,10 +39,11 @@ console.log(`Building ${displayName} v${config.version}...`);
 console.log(`  entry:  ${entry}`);
 console.log(`  output: ${outfile}`);
 
-const proc = Bun.spawnSync(
-  ["bun", "build", "--compile", `--outfile=${outfile}`, entry],
-  { cwd: configDir, stdout: "inherit", stderr: "inherit" },
-);
+const proc = Bun.spawnSync(["bun", "build", "--compile", `--outfile=${outfile}`, entry], {
+  cwd: configDir,
+  stdout: "inherit",
+  stderr: "inherit",
+});
 
 if (proc.exitCode !== 0) {
   console.error("\nBuild failed.");

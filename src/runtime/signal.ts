@@ -20,21 +20,33 @@ export function createSignalManager(): SignalManager {
   async function runHandlers() {
     // Run in reverse registration order (LIFO)
     for (const fn of [...handlers].reverse()) {
-      try { await fn(); } catch { /* swallow cleanup errors */ }
+      try {
+        await fn();
+      } catch {
+        /* swallow cleanup errors */
+      }
     }
   }
 
-  const onSIGINT  = () => { controller.abort(); void runHandlers(); };
-  const onSIGTERM = () => { controller.abort(); void runHandlers(); };
+  const onSIGINT = () => {
+    controller.abort();
+    void runHandlers();
+  };
+  const onSIGTERM = () => {
+    controller.abort();
+    void runHandlers();
+  };
 
-  process.on("SIGINT",  onSIGINT);
+  process.on("SIGINT", onSIGINT);
   process.on("SIGTERM", onSIGTERM);
 
   return {
     signal: controller.signal,
-    onExit(fn) { handlers.push(fn); },
+    onExit(fn) {
+      handlers.push(fn);
+    },
     teardown() {
-      process.off("SIGINT",  onSIGINT);
+      process.off("SIGINT", onSIGINT);
       process.off("SIGTERM", onSIGTERM);
     },
   };
@@ -55,8 +67,12 @@ export function createMockSignalManager(): SignalManager & {
   return {
     signal: controller.signal,
     exitHandlers,
-    onExit(fn) { exitHandlers.push(fn); },
+    onExit(fn) {
+      exitHandlers.push(fn);
+    },
     teardown() {},
-    abort() { controller.abort(); },
+    abort() {
+      controller.abort();
+    },
   };
 }

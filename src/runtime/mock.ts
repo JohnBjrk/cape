@@ -35,10 +35,10 @@ export class MockRuntime implements Runtime {
   config: Record<string, unknown>;
   commandConfig: Record<string, unknown>;
   prompt: PromptInterface = {
-    text:         () => Promise.reject(new NonTtyError()),
-    confirm:      () => Promise.reject(new NonTtyError()),
-    select:       () => Promise.reject(new NonTtyError()),
-    multiSelect:  () => Promise.reject(new NonTtyError()),
+    text: () => Promise.reject(new NonTtyError()),
+    confirm: () => Promise.reject(new NonTtyError()),
+    select: () => Promise.reject(new NonTtyError()),
+    multiSelect: () => Promise.reject(new NonTtyError()),
     autocomplete: () => Promise.reject(new NonTtyError()),
     NonTtyError,
     PromptCancelledError,
@@ -52,9 +52,13 @@ export class MockRuntime implements Runtime {
   exitCode: number | undefined;
 
   /** All output method calls, in order. */
-  get outputCalls(): OutputCall[] { return (this.output as ReturnType<typeof createMockOutput>).calls; }
+  get outputCalls(): OutputCall[] {
+    return (this.output as ReturnType<typeof createMockOutput>).calls;
+  }
   /** All log calls. */
-  get logCalls(): LogCall[] { return (this.log as ReturnType<typeof createMockLog>).calls; }
+  get logCalls(): LogCall[] {
+    return (this.log as ReturnType<typeof createMockLog>).calls;
+  }
   /** Secret store (readable in tests). */
   get secretStore(): Map<string, string> {
     return (this.secrets as ReturnType<typeof createMockSecrets>).store;
@@ -75,15 +79,21 @@ export class MockRuntime implements Runtime {
       ...options.args,
     };
     this.env = options.env ?? {};
-    this.config        = options.config ?? {};
+    this.config = options.config ?? {};
     this.commandConfig = options.commandConfig ?? {};
 
     const mockOutput = createMockOutput();
     // Also mirror print/printError to the legacy arrays for convenience
     const origPrint = mockOutput.print.bind(mockOutput);
     const origError = mockOutput.printError.bind(mockOutput);
-    mockOutput.print      = (t) => { this.printed.push(t); origPrint(t); };
-    mockOutput.printError = (t) => { this.errors.push(t);  origError(t); };
+    mockOutput.print = (t) => {
+      this.printed.push(t);
+      origPrint(t);
+    };
+    mockOutput.printError = (t) => {
+      this.errors.push(t);
+      origError(t);
+    };
     this.output = mockOutput;
 
     const mockFs = createMockFs(options.cliName ?? "test");
@@ -94,8 +104,8 @@ export class MockRuntime implements Runtime {
     }
     this.fs = mockFs;
 
-    this.stdin   = createMockStdin(options.stdinContent ?? "", options.stdinIsTTY ?? false);
-    this.log     = createMockLog();
+    this.stdin = createMockStdin(options.stdinContent ?? "", options.stdinIsTTY ?? false);
+    this.log = createMockLog();
     this.secrets = createMockSecrets(options.secrets ?? {});
 
     this._signalManager = createMockSignalManager();
@@ -123,7 +133,11 @@ export class MockRuntime implements Runtime {
   async abort(): Promise<void> {
     this._signalManager.abort();
     for (const fn of [...this._signalManager.exitHandlers].reverse()) {
-      try { await fn(); } catch { /* swallow */ }
+      try {
+        await fn();
+      } catch {
+        /* swallow */
+      }
     }
   }
 }

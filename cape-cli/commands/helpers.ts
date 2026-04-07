@@ -15,18 +15,22 @@ export async function resolveName(
 ): Promise<{ name: string; config: Record<string, unknown> }> {
   let config: Record<string, unknown>;
   try {
-    const mod = await import(configPath) as { default?: Record<string, unknown> };
+    const mod = (await import(configPath)) as { default?: Record<string, unknown> };
     if (!mod.default?.name) throw new Error("missing name in cli.config.ts");
     config = mod.default;
   } catch (err) {
-    runtime.printError(`Error: could not load cli.config.ts: ${err instanceof Error ? err.message : err}`);
+    runtime.printError(
+      `Error: could not load cli.config.ts: ${err instanceof Error ? err.message : err}`,
+    );
     runtime.exit(1);
   }
 
   const cliName = config!.name as string;
 
   if (expectedName && expectedName !== cliName) {
-    runtime.printError(`Error: --name "${expectedName}" does not match the CLI name "${cliName}" in cli.config.ts.`);
+    runtime.printError(
+      `Error: --name "${expectedName}" does not match the CLI name "${cliName}" in cli.config.ts.`,
+    );
     runtime.exit(1);
   }
 
@@ -49,7 +53,7 @@ export async function refreshCapeModule(cwd: string): Promise<void> {
         2,
       ) + "\n",
     ),
-    Bun.write(join(capeModDir, "index.js"),   CAPE_BUNDLE),
+    Bun.write(join(capeModDir, "index.js"), CAPE_BUNDLE),
     Bun.write(join(capeModDir, "index.d.ts"), CAPE_TYPES),
   ]);
 }

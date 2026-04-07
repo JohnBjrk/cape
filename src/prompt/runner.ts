@@ -53,7 +53,9 @@ export async function runPromptLoop(
           ? new Promise<Key>((_, reject) => {
               signal.addEventListener("abort", () => reject(new Error("aborted")), { once: true });
             })
-          : new Promise<never>(() => { /* never resolves if no signal */ }),
+          : new Promise<never>(() => {
+              /* never resolves if no signal */
+            }),
       ]).catch(() => ({ type: "interrupt" }) as Key);
 
       const result = onKey(key);

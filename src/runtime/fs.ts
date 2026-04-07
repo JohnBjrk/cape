@@ -35,8 +35,8 @@ export interface FsInterface {
 
 export function createFs(cliName: string): FsInterface {
   const configBase = join(xdgConfigHome(), cliName);
-  const dataBase   = join(xdgDataHome(),   cliName);
-  const cacheBase  = join(xdgCacheHome(),  cliName);
+  const dataBase = join(xdgDataHome(), cliName);
+  const cacheBase = join(xdgCacheHome(), cliName);
 
   async function read(path: string): Promise<string> {
     return Bun.file(path).text();
@@ -77,9 +77,15 @@ export function createFs(cliName: string): FsInterface {
     write,
     exists,
     list,
-    configPath(...segments) { return join(configBase, ...segments); },
-    dataPath(...segments)   { return join(dataBase, ...segments); },
-    cachePath(...segments)  { return join(cacheBase, ...segments); },
+    configPath(...segments) {
+      return join(configBase, ...segments);
+    },
+    dataPath(...segments) {
+      return join(dataBase, ...segments);
+    },
+    cachePath(...segments) {
+      return join(cacheBase, ...segments);
+    },
   };
 }
 
@@ -131,8 +137,8 @@ export function createMockFs(cliName = "test"): FsInterface & {
   }
 
   const configBase = join(xdgConfigHome(), cliName);
-  const dataBase   = join(xdgDataHome(),   cliName);
-  const cacheBase  = join(xdgCacheHome(),  cliName);
+  const dataBase = join(xdgDataHome(), cliName);
+  const cacheBase = join(xdgCacheHome(), cliName);
 
   return {
     files,
@@ -141,9 +147,15 @@ export function createMockFs(cliName = "test"): FsInterface & {
     write,
     exists,
     list,
-    configPath(...segments) { return join(configBase, ...segments); },
-    dataPath(...segments)   { return join(dataBase, ...segments); },
-    cachePath(...segments)  { return join(cacheBase, ...segments); },
+    configPath(...segments) {
+      return join(configBase, ...segments);
+    },
+    dataPath(...segments) {
+      return join(dataBase, ...segments);
+    },
+    cachePath(...segments) {
+      return join(cacheBase, ...segments);
+    },
   };
 }
 

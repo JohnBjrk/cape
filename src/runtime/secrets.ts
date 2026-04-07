@@ -71,7 +71,9 @@ export function createSecrets(cliName: string, commandName: string): SecretsInte
           await saveDoc(doc);
         }
       },
-      from(other) { return scopedTo(other); },
+      from(other) {
+        return scopedTo(other);
+      },
     };
   }
 
@@ -99,12 +101,20 @@ export function createMockSecrets(initial: Record<string, string> = {}): Secrets
   const store = new Map<string, string>(Object.entries(initial));
 
   function scopedTo(prefix: string): SecretsInterface {
-    const k = (key: string) => prefix ? `${prefix}/${key}` : key;
+    const k = (key: string) => (prefix ? `${prefix}/${key}` : key);
     return {
-      async get(key)        { return store.get(k(key)); },
-      async set(key, value) { store.set(k(key), value); },
-      async delete(key)     { store.delete(k(key)); },
-      from(section)         { return scopedTo(section); },
+      async get(key) {
+        return store.get(k(key));
+      },
+      async set(key, value) {
+        store.set(k(key), value);
+      },
+      async delete(key) {
+        store.delete(k(key));
+      },
+      from(section) {
+        return scopedTo(section);
+      },
     };
   }
 

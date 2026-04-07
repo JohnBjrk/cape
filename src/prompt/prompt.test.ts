@@ -11,14 +11,21 @@ import type { Key } from "./types.ts";
 // ---------------------------------------------------------------------------
 
 const char = (c: string): Key => ({ type: "char", char: c });
-const key = (type: Key["type"]): Key => ({ type } as Key);
+const key = (type: Key["type"]): Key => ({ type }) as Key;
 
 // ---------------------------------------------------------------------------
 // textReducer
 // ---------------------------------------------------------------------------
 
 describe("textReducer", () => {
-  const base: TextState = { value: "", cursor: 0, isPlaceholder: false, error: undefined, done: false, cancelled: false };
+  const base: TextState = {
+    value: "",
+    cursor: 0,
+    isPlaceholder: false,
+    error: undefined,
+    done: false,
+    cancelled: false,
+  };
 
   it("inserts character at cursor", () => {
     const s = textReducer(base, char("h"));
@@ -95,14 +102,14 @@ describe("textReducer", () => {
   });
 
   it("enter with validate sets error and does not set done", () => {
-    const validate = (v: string) => v.length < 3 ? "too short" : undefined;
+    const validate = (v: string) => (v.length < 3 ? "too short" : undefined);
     const s = textReducer({ ...base, value: "hi" }, key("enter"), validate);
     expect(s.done).toBe(false);
     expect(s.error).toBe("too short");
   });
 
   it("enter with passing validate sets done", () => {
-    const validate = (v: string) => v.length < 3 ? "too short" : undefined;
+    const validate = (v: string) => (v.length < 3 ? "too short" : undefined);
     const s = textReducer({ ...base, value: "hello" }, key("enter"), validate);
     expect(s.done).toBe(true);
     expect(s.error).toBeUndefined();
@@ -126,7 +133,14 @@ describe("textReducer", () => {
   });
 
   describe("placeholder (default value) behaviour", () => {
-    const withDefault: TextState = { value: "World", cursor: 5, isPlaceholder: true, error: undefined, done: false, cancelled: false };
+    const withDefault: TextState = {
+      value: "World",
+      cursor: 5,
+      isPlaceholder: true,
+      error: undefined,
+      done: false,
+      cancelled: false,
+    };
 
     it("first char replaces the placeholder entirely", () => {
       const s = textReducer(withDefault, char("J"));
@@ -355,20 +369,14 @@ describe("autocompleteReducer", () => {
   });
 
   it("items action updates items, clears loading, and snaps index to 0", () => {
-    const s = autocompleteReducer(
-      { ...base, loading: true },
-      { type: "items", items: ["Alice"] },
-    );
+    const s = autocompleteReducer({ ...base, loading: true }, { type: "items", items: ["Alice"] });
     expect(s.items).toEqual(["Alice"]);
     expect(s.loading).toBe(false);
     expect(s.index).toBe(0);
   });
 
   it("items action sets index to -1 when items are empty", () => {
-    const s = autocompleteReducer(
-      { ...base, loading: true },
-      { type: "items", items: [] },
-    );
+    const s = autocompleteReducer({ ...base, loading: true }, { type: "items", items: [] });
     expect(s.index).toBe(-1);
   });
 
@@ -410,7 +418,10 @@ describe("autocompleteReducer", () => {
   });
 
   it("enter with no highlight and no items accepts the typed query", () => {
-    const s = autocompleteReducer({ ...base, items: [], query: "custom" }, { type: "key", key: key("enter") });
+    const s = autocompleteReducer(
+      { ...base, items: [], query: "custom" },
+      { type: "key", key: key("enter") },
+    );
     expect(s.done).toBe(true);
     expect(s.query).toBe("custom");
   });

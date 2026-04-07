@@ -124,9 +124,7 @@ describe("resolve — validation errors", () => {
 
   it("throws ParseError when string flag has no value", () => {
     expect(() => parse(["--env"], basicSchema)).toThrow(ParseError);
-    expect(() => parse(["--env"], basicSchema)).toThrow(
-      "flag --env requires a value",
-    );
+    expect(() => parse(["--env"], basicSchema)).toThrow("flag --env requires a value");
   });
 
   it("throws ParseError for missing required flag", () => {

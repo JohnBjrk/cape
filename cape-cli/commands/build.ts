@@ -6,13 +6,16 @@ import { generateInstallScript } from "../../src/config/install.ts";
 import { CAPE_BUNDLE } from "../src/embedded.ts";
 import { resolveName, refreshCapeModule } from "./helpers.ts";
 
-interface Platform { os: "darwin" | "linux"; arch: "arm64" | "x64" }
+interface Platform {
+  os: "darwin" | "linux";
+  arch: "arm64" | "x64";
+}
 
 const ALL_PLATFORMS: Platform[] = [
   { os: "darwin", arch: "arm64" },
   { os: "darwin", arch: "x64" },
-  { os: "linux",  arch: "arm64" },
-  { os: "linux",  arch: "x64" },
+  { os: "linux", arch: "arm64" },
+  { os: "linux", arch: "x64" },
 ];
 
 export const buildCommand = defineCommand({
@@ -44,8 +47,8 @@ export const buildCommand = defineCommand({
     // Load config (no --name flag on build; just load and proceed)
     const { name, config } = await resolveName(configPath, undefined, runtime);
     const version = config.version as string | undefined;
-    const entry   = resolve(cwd, (config.entry as string | undefined) ?? "main.ts");
-    const outdir  = resolve(cwd, args.flags.outdir as string);
+    const entry = resolve(cwd, (config.entry as string | undefined) ?? "main.ts");
+    const outdir = resolve(cwd, args.flags.outdir as string);
     const allPlatforms = args.flags["all-platforms"] as boolean;
 
     if (!existsSync(entry)) {
@@ -73,12 +76,19 @@ export const buildCommand = defineCommand({
     if ((config.install || config.repository) && version) {
       try {
         const installPath = join(cwd, "install.sh");
-        await Bun.write(installPath, generateInstallScript({ ...config, version } as Parameters<typeof generateInstallScript>[0]));
+        await Bun.write(
+          installPath,
+          generateInstallScript({ ...config, version } as Parameters<
+            typeof generateInstallScript
+          >[0]),
+        );
         await chmod(installPath, 0o755);
         runtime.output.success(`install.sh: ${installPath}`);
         runtime.print(`  Distribute: curl -fsSL <url>/install.sh | sh`);
       } catch (err) {
-        runtime.printError(`Warning: could not generate install.sh: ${err instanceof Error ? err.message : err}`);
+        runtime.printError(
+          `Warning: could not generate install.sh: ${err instanceof Error ? err.message : err}`,
+        );
       }
     }
   },
@@ -92,10 +102,11 @@ async function buildCurrentPlatform(
   runtime: { printError: (s: string) => void; output: { success: (s: string) => void } },
 ): Promise<void> {
   const outfile = join(outdir, name);
-  const proc = Bun.spawnSync(
-    ["bun", "build", "--compile", `--outfile=${outfile}`, entry],
-    { cwd, stdout: "inherit", stderr: "inherit" },
-  );
+  const proc = Bun.spawnSync(["bun", "build", "--compile", `--outfile=${outfile}`, entry], {
+    cwd,
+    stdout: "inherit",
+    stderr: "inherit",
+  });
   if (proc.exitCode !== 0) {
     runtime.printError("Build failed.");
     process.exit(proc.exitCode ?? 1);
@@ -108,19 +119,18 @@ async function buildAllPlatforms(
   entry: string,
   outdir: string,
   cwd: string,
-  runtime: { printError: (s: string) => void; output: { success: (s: string) => void }; print: (s: string) => void },
+  runtime: {
+    printError: (s: string) => void;
+    output: { success: (s: string) => void };
+    print: (s: string) => void;
+  },
 ): Promise<void> {
   for (const { os, arch } of ALL_PLATFORMS) {
     const outfile = join(outdir, `${name}-${os}-${arch}`);
     runtime.print(`  ${os}/${arch}...`);
 
     const proc = Bun.spawnSync(
-      [
-        "bun", "build", "--compile",
-        `--target=bun-${os}-${arch}`,
-        `--outfile=${outfile}`,
-        entry,
-      ],
+      ["bun", "build", "--compile", `--target=bun-${os}-${arch}`, `--outfile=${outfile}`, entry],
       { cwd, stdout: "pipe", stderr: "inherit" },
     );
 
@@ -131,4 +141,3 @@ async function buildAllPlatforms(
     runtime.output.success(`  Built: ${outfile}`);
   }
 }
-

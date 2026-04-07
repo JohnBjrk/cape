@@ -14,7 +14,7 @@ export const commandCommand = defineCommand({
       description: "Generate a new command file",
       schema: {
         flags: {
-          name:        { type: "string", alias: "n", description: "Command name" },
+          name: { type: "string", alias: "n", description: "Command name" },
           description: { type: "string", alias: "d", description: "Command description" },
         },
       },
@@ -26,16 +26,27 @@ export const commandCommand = defineCommand({
           runtime.exit(1);
         }
 
-        const name        = await resolveArg(args.flags.name as string | undefined, "Command name", validateName);
-        const description = await resolveArg(args.flags.description as string | undefined, "Description", validateNonEmpty);
+        const name = await resolveArg(
+          args.flags.name as string | undefined,
+          "Command name",
+          validateName,
+        );
+        const description = await resolveArg(
+          args.flags.description as string | undefined,
+          "Description",
+          validateNonEmpty,
+        );
 
         const commandsDir = join(cwd, "commands");
-        const outPath     = join(commandsDir, `${name}.ts`);
+        const outPath = join(commandsDir, `${name}.ts`);
 
         if (existsSync(outPath)) {
           let overwrite = false;
           try {
-            overwrite = await confirm({ message: `commands/${name}.ts already exists. Overwrite?`, default: false });
+            overwrite = await confirm({
+              message: `commands/${name}.ts already exists. Overwrite?`,
+              default: false,
+            });
           } catch (err) {
             if (!(err instanceof NonTtyError)) throw err;
           }

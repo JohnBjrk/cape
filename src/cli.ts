@@ -51,11 +51,13 @@ export interface CommandDef {
  * A Runtime with both `commandConfig` and `config` narrowed to their inferred types.
  * `CC` is the command-level config schema; `GC` is the CLI-level (global) config schema.
  */
-export type RuntimeWith<CC extends ConfigSchema, GC extends ConfigSchema> =
-  Omit<Runtime, "commandConfig" | "config"> & {
-    commandConfig: InferConfig<CC>;
-    config: InferConfig<GC>;
-  };
+export type RuntimeWith<CC extends ConfigSchema, GC extends ConfigSchema> = Omit<
+  Runtime,
+  "commandConfig" | "config"
+> & {
+  commandConfig: InferConfig<CC>;
+  config: InferConfig<GC>;
+};
 
 /**
  * Defines a subcommand with schema-inferred arg types.
@@ -137,7 +139,10 @@ export function typedWith<GC extends ConfigSchema>() {
     }): CommandDef {
       return def as CommandDef;
     },
-    defineSubcommand<S extends ArgSchema, CC extends ConfigSchema = Record<never, ConfigField>>(def: {
+    defineSubcommand<
+      S extends ArgSchema,
+      CC extends ConfigSchema = Record<never, ConfigField>,
+    >(def: {
       name: string;
       aliases?: string[];
       description: string;
@@ -172,9 +177,7 @@ export interface SetupSecret {
  * // {VERSION} is replaced with the version string at build time.
  * // Binaries are expected at <url>/<name>-<os>-<arch>
  */
-export type InstallConfig =
-  | { type: "github"; repo: string }
-  | { type: "custom"; url: string };
+export type InstallConfig = { type: "github"; repo: string } | { type: "custom"; url: string };
 
 export interface CliConfig extends CliInfo {
   /**
@@ -215,7 +218,7 @@ export function createCli(config: CliConfig, commands: CommandDef[] = []) {
   return {
     async run(argv: string[] = process.argv.slice(2)): Promise<void> {
       // Fast-path: --version never needs plugin discovery or parsing
-      if (argv.some(a => a === "--version")) {
+      if (argv.some((a) => a === "--version")) {
         if (config.version) {
           print(`${config.name} ${config.version}`);
         }
@@ -258,7 +261,9 @@ async function resolveCommands(
 ): Promise<CommandDef[]> {
   for (const cmd of staticCommands) {
     if (RESERVED_NAMES.has(cmd.name)) {
-      console.warn(`[cape] Warning: "${cmd.name}" is a reserved built-in command name and will shadow the built-in.`);
+      console.warn(
+        `[cape] Warning: "${cmd.name}" is a reserved built-in command name and will shadow the built-in.`,
+      );
     }
   }
 
@@ -267,7 +272,9 @@ async function resolveCommands(
   // Read pluginDirs from [cliName] section in config files
   const frameworkCfg = await readFrameworkConfig(config.name);
   const tomlPluginDirs = (frameworkCfg["pluginDirs"] as string[] | undefined) ?? [];
-  const dirs = defaultPluginDirs(config.name).concat(config.pluginDirs ?? []).concat(tomlPluginDirs);
+  const dirs = defaultPluginDirs(config.name)
+    .concat(config.pluginDirs ?? [])
+    .concat(tomlPluginDirs);
 
   const discovered = await discoverPlugins(dirs);
   const pluginCommands: CommandDef[] = [];
@@ -283,26 +290,23 @@ async function resolveCommands(
 
   // Built-ins fill any name not already taken by static or plugin commands
   const takenNames = new Set([...staticNames, ...pluginCommands.map((c) => c.name)]);
-  const builtins = createBuiltinCommands(config.name, config.pluginDirs ?? [], config.version ?? "0.0.0", config.config ?? {})
-    .filter((b) => !takenNames.has(b.name));
+  const builtins = createBuiltinCommands(
+    config.name,
+    config.pluginDirs ?? [],
+    config.version ?? "0.0.0",
+    config.config ?? {},
+  ).filter((b) => !takenNames.has(b.name));
 
   return [...staticCommands, ...pluginCommands, ...builtins];
 }
 
 function defaultPluginDirs(cliName: string): string[] {
-  return [
-    join(process.cwd(), "commands"),
-    join(homedir(), ".config", cliName, "plugins"),
-  ];
+  return [join(process.cwd(), "commands"), join(homedir(), ".config", cliName, "plugins")];
 }
 
 // ---------------------------------------------------------------------------
 
-async function dispatch(
-  config: CliConfig,
-  commands: CommandDef[],
-  argv: string[],
-): Promise<void> {
+async function dispatch(config: CliConfig, commands: CommandDef[], argv: string[]): Promise<void> {
   const tokens = tokenize(argv);
 
   // Scan argv left-to-right for the first non-flag value — that's the command.
@@ -316,10 +320,18 @@ async function dispatch(
       const parsed = resolve(tokens, globalSchema);
       const globals = extractGlobalFlags(parsed);
       if (globals.help) {
-        print(renderHelp(config, { level: "root", commands: toSummaries(commands) }, { noColor: globals.noColor }));
+        print(
+          renderHelp(
+            config,
+            { level: "root", commands: toSummaries(commands) },
+            { noColor: globals.noColor },
+          ),
+        );
         return;
       }
-    } catch { /* ignore parse errors at root with no command */ }
+    } catch {
+      /* ignore parse errors at root with no command */
+    }
     print(renderHelp(config, { level: "root", commands: toSummaries(commands) }));
     return;
   }
@@ -328,8 +340,13 @@ async function dispatch(
   const command = findByName(commands, commandName);
 
   if (!command) {
-    const suggestion = closestName(commandName, commands.map((c) => c.name));
-    printError(`Error: unknown command "${commandName}"${suggestion ? ` — did you mean "${suggestion}"?` : ""}`);
+    const suggestion = closestName(
+      commandName,
+      commands.map((c) => c.name),
+    );
+    printError(
+      `Error: unknown command "${commandName}"${suggestion ? ` — did you mean "${suggestion}"?` : ""}`,
+    );
     printError(`Run '${config.name} --help' to see available commands.`);
     process.exit(2);
   }
@@ -347,13 +364,30 @@ async function dispatch(
       const parsed = resolve(tokenize(strippedArgv), merged);
       const globals = extractGlobalFlags(parsed);
       if (globals.help) {
-        print(renderHelp(config, { level: "command", command: { name: command.name, description: command.description, schema: cmdSchema }, subcommands: toSummaries(subcommands) }, { noColor: globals.noColor }));
+        print(
+          renderHelp(
+            config,
+            {
+              level: "command",
+              command: { name: command.name, description: command.description, schema: cmdSchema },
+              subcommands: toSummaries(subcommands),
+            },
+            { noColor: globals.noColor },
+          ),
+        );
         return;
       }
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
 
-    const suggestion = closestName(subcommandName, subcommands.map((s) => s.name));
-    printError(`Error: unknown subcommand "${subcommandName}"${suggestion ? ` — did you mean "${suggestion}"?` : ""}`);
+    const suggestion = closestName(
+      subcommandName,
+      subcommands.map((s) => s.name),
+    );
+    printError(
+      `Error: unknown subcommand "${subcommandName}"${suggestion ? ` — did you mean "${suggestion}"?` : ""}`,
+    );
     printError(`Run '${config.name} ${command.name} --help' to see available subcommands.`);
     process.exit(2);
   }
@@ -370,17 +404,33 @@ async function dispatch(
   if (hasHelpFlag(strippedArgv)) {
     const noColor = strippedArgv.includes("--no-color");
     if (subcommand) {
-      print(renderHelp(config, {
-        level: "subcommand",
-        command:    { name: command.name,    description: command.description,    schema: cmdSchema },
-        subcommand: { name: subcommand.name, description: subcommand.description, schema: subSchema },
-      }, { noColor }));
+      print(
+        renderHelp(
+          config,
+          {
+            level: "subcommand",
+            command: { name: command.name, description: command.description, schema: cmdSchema },
+            subcommand: {
+              name: subcommand.name,
+              description: subcommand.description,
+              schema: subSchema,
+            },
+          },
+          { noColor },
+        ),
+      );
     } else {
-      print(renderHelp(config, {
-        level: "command",
-        command: { name: command.name, description: command.description, schema: cmdSchema },
-        subcommands: toSummaries(subcommands),
-      }, { noColor }));
+      print(
+        renderHelp(
+          config,
+          {
+            level: "command",
+            command: { name: command.name, description: command.description, schema: cmdSchema },
+            subcommands: toSummaries(subcommands),
+          },
+          { noColor },
+        ),
+      );
     }
     return;
   }
@@ -425,12 +475,12 @@ async function dispatch(
   // --- run ---
   const activeSchema = subcommand?.schema ?? command.schema;
   const runtimeOpts: BasicRuntimeOptions = {
-    args:        parsed,
-    rawEnv:      getEnv(),
+    args: parsed,
+    rawEnv: getEnv(),
     globals,
-    cliName:     config.name,
+    cliName: config.name,
     commandName: subcommand ? `${command.name}/${subcommand.name}` : command.name,
-    schema:      activeSchema,
+    schema: activeSchema,
   };
   const runtime = new BasicRuntime(runtimeOpts);
 
@@ -442,8 +492,8 @@ async function dispatch(
 
   try {
     await runtime.loadConfig(config.name, command.name, {
-      overridePath:  globals.config,
-      cliSchema:     config.config,
+      overridePath: globals.config,
+      cliSchema: config.config,
       commandSchema: commandConfigSchema,
     });
   } catch (err) {
@@ -461,11 +511,13 @@ async function dispatch(
       await command.run(parsed, runtime);
     } else {
       // Command has subcommands but none was specified — show command help
-      print(renderHelp(config, {
-        level: "command",
-        command: { name: command.name, description: command.description, schema: cmdSchema },
-        subcommands: toSummaries(subcommands),
-      }));
+      print(
+        renderHelp(config, {
+          level: "command",
+          command: { name: command.name, description: command.description, schema: cmdSchema },
+          subcommands: toSummaries(subcommands),
+        }),
+      );
     }
     // Emit buffered JSON output (no-op when --json was not passed)
     runtime.flushOutput();
@@ -559,11 +611,15 @@ function initCommand(config: CliConfig): CommandDef {
         const credPath = runtime.fs.configPath("credentials.toml");
         let doc: TomlDocument = {};
         if (await runtime.fs.exists(credPath)) {
-          try { doc = parseToml(await runtime.fs.read(credPath)); } catch { /* start fresh */ }
+          try {
+            doc = parseToml(await runtime.fs.read(credPath));
+          } catch {
+            /* start fresh */
+          }
         }
 
         for (const secret of secrets) {
-          const existing = (doc[secret.key] as string | undefined);
+          const existing = doc[secret.key] as string | undefined;
           if (secret.description) runtime.print(`  ${secret.description}`);
 
           let value: string;
@@ -604,7 +660,9 @@ function initCommand(config: CliConfig): CommandDef {
       }
 
       runtime.print("");
-      runtime.output.success(`${config.displayName ?? config.name} is ready. Run '${config.name} --help' to get started.`);
+      runtime.output.success(
+        `${config.displayName ?? config.name} is ready. Run '${config.name} --help' to get started.`,
+      );
     },
   };
 }
@@ -631,8 +689,8 @@ function resolveShellArg(raw: string | undefined, runtime: Runtime): Shell | und
  * any command in `fallback` whose name already appears in `primary` is skipped.
  */
 function mergeByName(primary: CommandDef[], fallback: CommandDef[]): CommandDef[] {
-  const names = new Set(primary.map(c => c.name));
-  return [...primary, ...fallback.filter(c => !names.has(c.name))];
+  const names = new Set(primary.map((c) => c.name));
+  return [...primary, ...fallback.filter((c) => !names.has(c.name))];
 }
 
 // ---------------------------------------------------------------------------
@@ -704,7 +762,10 @@ function schemaAwareFreeValue(
 
     if (arg.startsWith("-")) {
       // --flag=value: value is embedded, skip only this token
-      if (arg.includes("=")) { i++; continue; }
+      if (arg.includes("=")) {
+        i++;
+        continue;
+      }
 
       const canonical = arg.startsWith("--") ? arg.slice(2) : aliasMap.get(arg);
       const def = canonical !== undefined ? flags[canonical] : undefined;
@@ -715,7 +776,7 @@ function schemaAwareFreeValue(
         // Unknown flag: if the next token looks like a value (not a flag), consume it too.
         // This prevents typos like `--nane Alice` from misidentifying "Alice" as a command.
         const next = argv[i + 1];
-        i += (next && !next.startsWith("-") && next !== "--") ? 2 : 1;
+        i += next && !next.startsWith("-") && next !== "--" ? 2 : 1;
       }
       continue;
     }
@@ -729,12 +790,12 @@ function findByName<T extends { name: string; aliases?: string[] }>(
   items: T[],
   name: string,
 ): T | undefined {
-  return items.find(
-    (item) => item.name === name || (item.aliases ?? []).includes(name),
-  );
+  return items.find((item) => item.name === name || (item.aliases ?? []).includes(name));
 }
 
-function toSummaries(items: { name: string; aliases?: string[]; description: string }[]): CommandSummary[] {
+function toSummaries(
+  items: { name: string; aliases?: string[]; description: string }[],
+): CommandSummary[] {
   return items.map(({ name, aliases, description }) => ({ name, aliases, description }));
 }
 
@@ -743,21 +804,26 @@ function closestName(input: string, names: string[]): string | undefined {
   let bestDist = Infinity;
   for (const name of names) {
     const d = editDistance(input, name);
-    if (d < bestDist) { bestDist = d; best = name; }
+    if (d < bestDist) {
+      bestDist = d;
+      best = name;
+    }
   }
   return bestDist <= 2 ? best : undefined;
 }
 
 function editDistance(a: string, b: string): number {
-  const m = a.length, n = b.length;
+  const m = a.length,
+    n = b.length;
   const dp = Array.from({ length: m + 1 }, (_, i) =>
     Array.from({ length: n + 1 }, (_, j) => (i === 0 ? j : j === 0 ? i : 0)),
   );
   for (let r = 1; r <= m; r++)
     for (let c = 1; c <= n; c++)
-      dp[r]![c] = a[r-1] === b[c-1]
-        ? dp[r-1]![c-1]!
-        : 1 + Math.min(dp[r-1]![c]!, dp[r]![c-1]!, dp[r-1]![c-1]!);
+      dp[r]![c] =
+        a[r - 1] === b[c - 1]
+          ? dp[r - 1]![c - 1]!
+          : 1 + Math.min(dp[r - 1]![c]!, dp[r]![c - 1]!, dp[r - 1]![c - 1]!);
   return dp[m]![n]!;
 }
 
@@ -776,5 +842,9 @@ function hasHelpFlag(argv: string[]): boolean {
   return false;
 }
 
-function print(text: string): void { process.stdout.write(text + "\n"); }
-function printError(text: string): void { process.stderr.write(text + "\n"); }
+function print(text: string): void {
+  process.stdout.write(text + "\n");
+}
+function printError(text: string): void {
+  process.stderr.write(text + "\n");
+}

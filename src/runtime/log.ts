@@ -30,9 +30,9 @@ interface LogOptions {
 export function createLog(opts: LogOptions): LogInterface {
   const { noColor } = opts;
   const isVerbose = opts.verbose || opts.debug;
-  const isDebug   = opts.debug;
+  const isDebug = opts.debug;
 
-  const dim   = noColor ? (s: string) => s : style.dim;
+  const dim = noColor ? (s: string) => s : style.dim;
 
   return {
     verbose(message) {
@@ -57,7 +57,11 @@ export function createMockLog(): LogInterface & { calls: LogCall[] } {
   const calls: LogCall[] = [];
   return {
     calls,
-    verbose(message) { calls.push({ level: "verbose", message }); },
-    debug(message)   { calls.push({ level: "debug",   message }); },
+    verbose(message) {
+      calls.push({ level: "verbose", message });
+    },
+    debug(message) {
+      calls.push({ level: "debug", message });
+    },
   };
 }

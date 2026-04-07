@@ -20,7 +20,11 @@ export interface TextState {
   cancelled: boolean;
 }
 
-export function textReducer(state: TextState, key: Key, validate?: (v: string) => string | undefined): TextState {
+export function textReducer(
+  state: TextState,
+  key: Key,
+  validate?: (v: string) => string | undefined,
+): TextState {
   if (state.done || state.cancelled) return state;
 
   switch (key.type) {
@@ -37,7 +41,14 @@ export function textReducer(state: TextState, key: Key, validate?: (v: string) =
     case "char":
       if (state.isPlaceholder) {
         // First keystroke replaces the placeholder entirely
-        return { value: key.char, cursor: 1, isPlaceholder: false, error: undefined, done: false, cancelled: false };
+        return {
+          value: key.char,
+          cursor: 1,
+          isPlaceholder: false,
+          error: undefined,
+          done: false,
+          cancelled: false,
+        };
       }
       return insertChar(state, key.char);
 
@@ -59,7 +70,11 @@ export function textReducer(state: TextState, key: Key, validate?: (v: string) =
       return { ...state, isPlaceholder: false, cursor: Math.max(0, state.cursor - 1) };
 
     case "right":
-      return { ...state, isPlaceholder: false, cursor: Math.min(state.value.length, state.cursor + 1) };
+      return {
+        ...state,
+        isPlaceholder: false,
+        cursor: Math.min(state.value.length, state.cursor + 1),
+      };
 
     case "home":
       return { ...state, isPlaceholder: false, cursor: 0 };
