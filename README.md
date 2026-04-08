@@ -26,12 +26,6 @@ cape --version
 
 ---
 
-## Prerequisites
-
-- [Bun](https://bun.sh) — Cape projects run on Bun
-
----
-
 ## Quickstart
 
 ### 1. Create a new CLI
