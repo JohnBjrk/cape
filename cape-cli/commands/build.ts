@@ -1,7 +1,7 @@
 import { defineCommand } from "../../src/cli.ts";
 import { resolve, join } from "node:path";
 import { existsSync } from "node:fs";
-import { mkdir, chmod } from "node:fs/promises";
+import { mkdir, chmod, unlink } from "node:fs/promises";
 import { generateInstallScript } from "../../src/config/install.ts";
 import { CAPE_BUNDLE } from "../src/embedded.ts";
 import { resolveName, refreshCapeModule } from "./helpers.ts";
@@ -138,6 +138,12 @@ async function buildAllPlatforms(
       runtime.printError(`  Failed: ${os}/${arch}`);
       process.exit(proc.exitCode ?? 1);
     }
-    runtime.output.success(`  Built: ${outfile}`);
+
+    // Compress and replace the plain binary with a .gz
+    const compressed = Bun.gzipSync(await Bun.file(outfile).bytes(), { level: 9 });
+    await Bun.write(`${outfile}.gz`, compressed);
+    await unlink(outfile);
+
+    runtime.output.success(`  Built: ${outfile}.gz`);
   }
 }

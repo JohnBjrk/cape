@@ -1,8 +1,9 @@
 import { defineCommand } from "../../src/cli.ts";
 import { resolveName } from "./helpers.ts";
 import { join } from "node:path";
-import { readdir } from "node:fs/promises";
+import { readdir, writeFile, unlink, chmod } from "node:fs/promises";
 import { existsSync } from "node:fs";
+import { tmpdir } from "node:os";
 import type { InstallConfig } from "../../src/cli.ts";
 
 export const publishCommand = defineCommand({
@@ -45,9 +46,20 @@ export const publishCommand = defineCommand({
 
     // --- verify binary version matches config --------------------------------
 
-    const binPath = findCurrentPlatformBinary(distDir, name);
-    if (binPath) {
-      const versionCheck = await runtime.exec.run([binPath, "--version"], { noThrow: true });
+    const binGz = findCurrentPlatformBinary(distDir, name);
+    if (!binGz) {
+      runtime.printError("Error: no binary found in dist/. Run `cape build --all-platforms` first.");
+      runtime.exit(1);
+      return;
+    }
+
+    const tmpBin = join(tmpdir(), `cape-verify-${Date.now()}`);
+    try {
+      const decompressed = Bun.gunzipSync(await Bun.file(binGz).bytes());
+      await writeFile(tmpBin, decompressed);
+      await chmod(tmpBin, 0o755);
+
+      const versionCheck = await runtime.exec.run([tmpBin, "--version"], { noThrow: true });
       const binOutput = versionCheck.stdout.trim();
       const expected = `${name} ${version}`;
       if (!versionCheck.ok || binOutput !== expected) {
@@ -57,9 +69,8 @@ export const publishCommand = defineCommand({
         runtime.printError("Run `cape build --all-platforms` to rebuild with the current version.");
         runtime.exit(1);
       }
-    } else {
-      runtime.printError(`Error: no binary found in dist/. Run \`cape build --all-platforms\` first.`);
-      runtime.exit(1);
+    } finally {
+      await unlink(tmpBin).catch(() => {});
     }
 
     // --- pre-flight checks ---------------------------------------------------
@@ -85,7 +96,7 @@ export const publishCommand = defineCommand({
 
     const entries = await readdir(distDir);
     const assets = entries
-      .filter((e) => !e.startsWith("."))
+      .filter((e) => e.endsWith(".gz") || e === "install.sh")
       .map((e) => join(distDir, e));
 
     // --- confirm -------------------------------------------------------------
@@ -167,11 +178,16 @@ export const publishCommand = defineCommand({
  * if none is found. Prefers the platform-specific binary (from --all-platforms)
  * over the plain binary (from a single-platform build).
  */
+/**
+ * Returns the path to the current platform's binary in dist/.
+ * Prefers the compressed .gz binary (from --all-platforms build),
+ * falls back to the plain uncompressed binary (from a single-platform build).
+ */
 function findCurrentPlatformBinary(distDir: string, name: string): string | undefined {
   const os = process.platform === "darwin" ? "darwin" : "linux";
   const arch = process.arch === "arm64" ? "arm64" : "x64";
-  const platformBin = join(distDir, `${name}-${os}-${arch}`);
-  if (existsSync(platformBin)) return platformBin;
+  const gzBin = join(distDir, `${name}-${os}-${arch}.gz`);
+  if (existsSync(gzBin)) return gzBin;
   const plainBin = join(distDir, name);
   if (existsSync(plainBin)) return plainBin;
   return undefined;
