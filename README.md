@@ -1,65 +1,277 @@
 # Cape — CLI Application Plugin Engine
 
-## The Problem
+> **Alpha release** — Cape is early and the API may change. Feedback welcome.
 
-Building a CLI tool starts simple — a few commands, some flags, some config. But as your organization grows, it becomes a bottleneck. The platform team wants a `deploy` command; the data team wants a `sync` command; the security team wants an `audit` command — all with different owners, all waiting on the same repo. Feature teams send PRs for changes the tooling team didn’t ask for and can’t prioritize. Eventually someone forks the CLI, and now you have two. Then three.
+Cape is a TypeScript CLI framework for building distributable command-line tools. It handles everything from scaffolding and development to compiling a self-contained binary, generating an install script, and publishing a GitHub release — all from a single `cape` command.
 
-The standard answer — yargs or commander with some ad-hoc plugin mechanism bolted on — works until it doesn’t.
+---
 
------
+## Install
 
-## What Cape Is
+```sh
+curl -fsSL https://github.com/JohnBjrk/cape/releases/latest/download/install.sh | sh
+```
 
-Cape is a TypeScript CLI framework built around a single premise: the plugin system shouldn’t be an afterthought bolted onto a core tool — it should be the foundation everything else is built on.
+Then add Cape to your PATH (the installer will print the exact line):
 
-That means two kinds of engineers get a great experience: the tooling team that owns and ships the CLI, and the feature teams that extend it for their own workflows — without waiting on anyone.
+```sh
+export PATH="$HOME/.cape/bin:$PATH"
+```
 
------
+Verify:
 
-## What’s Unique
+```sh
+cape --version
+```
 
-**1. Plugins and built-in commands are the same thing**
+---
 
-A plugin is just a command that lives outside the core repo — same API, same types, same runtime. This means the boundary between “built-in” and “plugin” is a deployment decision, not an architectural one.
+## Prerequisites
 
-A feature team can prototype a new workflow as a plugin in their repo. If it proves broadly useful, the tooling team promotes it to a built-in by moving the file. The reverse works too — a built-in that only one team uses gets extracted into their repo as a plugin. No refactoring, no interface changes.
+- [Bun](https://bun.sh) — Cape projects run on Bun
 
-**2. No external build tools, anywhere in the chain**
+---
 
-Cape runs TypeScript directly — no transpilation step in development, no separate compiler to configure or version-pin. `cape run` starts instantly; `cape build` compiles to a single self-contained binary. Feature teams write plugins as plain `.ts` files, and the CLI picks them up automatically.
+## Quickstart
 
-Types flow through the same mechanism: the CLI itself generates the type definitions feature teams need to write typed plugins. No separate type-generation pipeline, no build step in the plugin repo — just run one command and get full IDE support.
+### 1. Create a new CLI
 
-**3. A runtime, not just parsed args**
+```sh
+cape init my-tool
+cd my-tool
+```
 
-Every command — built-in or plugin — gets the same `runtime` object: a consistent, pre-wired toolkit for prompts, HTTP, secrets, output, filesystem, and process execution. This isn’t just convenient. It means every command handles cancellation the same way, formats output the same way, and accesses credentials the same way — regardless of who wrote it or where it lives.
+This scaffolds a project with a `cli.config.ts`, a `main.ts` entry point, and a sample `hello` command.
 
-It also makes commands dramatically easier to test. Because all side effects go through `runtime`, you swap in a test implementation and your command logic runs without touching the network, the filesystem, or a real credential store. Plugin authors get the same testability as built-in commands, for free.
+### 2. Run in dev mode
 
-**4. Great DX for the feature team**
+```sh
+cape run hello --name World
+# Hello, World!
+```
 
-A plugin is a `.ts` file and a small manifest. Drop it in the right directory; it appears in the CLI at next invocation — no registration, no publish step, no version pinning. Feature teams write commands with the same API and the same type safety as built-in commands, with real IDE support for `runtime.config` typed to the specific CLI they’re extending.
+No build step. Cape runs your TypeScript directly.
 
-This means feature teams can own their workflows end-to-end: write the command, iterate on it, and decide with the tooling team whether it belongs in the core.
+### 3. Add a command
 
-**5. The tooling to ship a CLI, not just the API to build one**
+```sh
+cape command add
+# ? Command name: greet
+# ? Description: Greet someone by name
+```
 
-Most CLI frameworks hand you primitives and leave the rest to you. Cape ships a meta-CLI — `cape init`, `cape run`, `cape build`, `cape command add` — that handles scaffolding, development workflow, and compiling to a distributable binary. The tooling team isn’t stitching together a build pipeline; they’re defining commands and shipping them.
+This generates `commands/greet.ts`. Open it and fill in the logic:
 
------
+```ts
+// commands/greet.ts
+import { defineCommand } from "../cli.config.ts";
 
-## The Gains
+export const greetCommand = defineCommand({
+  name: "greet",
+  description: "Greet someone by name",
+  schema: {
+    flags: {
+      name: { type: "string", alias: "n", required: true, description: "Who to greet" },
+      loud: { type: "boolean", alias: "l", description: "Shout it" },
+    },
+  },
+  async run(args, runtime) {
+    const greeting = `Hello, ${args.flags.name}!`;
+    runtime.print(args.flags.loud ? greeting.toUpperCase() : greeting);
+  },
+});
+```
 
-**For the tooling team**: Ship a core CLI with a clear extension model. Feature teams add their own commands without PRs to your repo. Promotion from plugin to built-in (and back) is a file move, not a refactor.
+Register it in `main.ts`:
 
-**For the feature team**: Own your workflows end-to-end. Write a typed command in your repo, extend the shared CLI, and iterate without waiting on the tooling team.
+```ts
+// main.ts
+import { createCli } from "cape";
+import config from "./cli.config.ts";
+import { helloCommand } from "./commands/hello.ts";
+import { greetCommand } from "./commands/greet.ts";
 
-**For everyone**: One consistent runtime across all commands — built-in or plugin — means cancellation, output formatting, credentials, and JSON mode just work, regardless of who wrote the command or where it lives.
+const cli = createCli(config, [helloCommand, greetCommand]);
 
------
+await cli.run();
+```
 
-## Where It Fits
+Try it:
 
-Engineers today expect their tools to just work — fast feedback, good error messages, real IDE support, consistent behaviour. That bar, once reserved for polished open-source developer tools, now applies to internal tooling too. Teams notice when the internal CLI feels cobbled together.
+```sh
+cape run greet --name Alice
+# Hello, Alice!
 
-Cape is how you build the internal CLI that meets that bar — and keeps meeting it as your organization grows and more teams want to extend it.
+cape run greet --name Alice --loud
+# HELLO, ALICE!
+```
+
+---
+
+## Build and install locally
+
+Compile to a self-contained binary:
+
+```sh
+cape build
+```
+
+This writes `dist/my-tool`. Install it to `~/.my-tool/bin/`:
+
+```sh
+cape install
+```
+
+Add the bin dir to your PATH and run it directly:
+
+```sh
+export PATH="$HOME/.my-tool/bin:$PATH"
+my-tool greet --name Alice
+```
+
+---
+
+## Publish a GitHub release
+
+### Setup
+
+1. Add `install` to your `cli.config.ts`:
+
+```ts
+export default defineConfig({
+  name: "my-tool",
+  displayName: "My Tool",
+  version: "0.1.0",
+  description: "A CLI built with Cape",
+  config: globalConfig,
+  install: { type: "github", repo: "your-org/my-tool" },
+});
+```
+
+2. Make sure the [GitHub CLI](https://cli.github.com) is installed and authenticated:
+
+```sh
+gh auth login
+```
+
+### Build for all platforms
+
+```sh
+cape build --all-platforms
+```
+
+This produces compressed binaries for all four targets in `dist/`:
+
+```
+dist/my-tool-darwin-arm64.gz
+dist/my-tool-darwin-x64.gz
+dist/my-tool-linux-arm64.gz
+dist/my-tool-linux-x64.gz
+dist/install.sh
+```
+
+### Publish
+
+```sh
+cape publish
+```
+
+Cape will verify the binary version matches `cli.config.ts`, show a summary, ask for confirmation, then create the GitHub release with all assets.
+
+```
+  Name:    My Tool
+  Version: 0.1.0
+  Tag:     v0.1.0
+  Assets:  5 files from dist/
+
+Publish My Tool v0.1.0 to GitHub? › Yes
+```
+
+Once published, anyone can install your CLI with:
+
+```sh
+curl -fsSL https://github.com/your-org/my-tool/releases/latest/download/install.sh | sh
+```
+
+---
+
+## Plugins
+
+Plugins let you (or your users) extend a CLI without touching the core repo. A plugin is a TypeScript command file paired with a small `.plugin.toml` manifest.
+
+### Configure plugin discovery
+
+Add a `.cape.toml` to your project root:
+
+```toml
+[cape]
+pluginDirs = ["./plugins"]
+```
+
+### Write a plugin
+
+Create `plugins/status/status.plugin.toml`:
+
+```toml
+name = "status"
+description = "Show deployment status"
+command = "./status.ts"
+enabled = true
+frameworkVersion = "1.0.0"
+```
+
+Create `plugins/status/status.ts`:
+
+```ts
+import { defineCommand } from "cape";
+
+export default defineCommand({
+  name: "status",
+  description: "Show deployment status",
+  schema: {
+    flags: {
+      env: { type: "string", alias: "e", default: "staging", description: "Target environment" },
+    },
+  },
+  async run(args, runtime) {
+    runtime.print(`Checking status in ${args.flags.env}...`);
+    // fetch from your API, print a table, etc.
+  },
+});
+```
+
+That's it. Run `cape run status` (or just `my-tool status` after building) and the command appears automatically — no registration required.
+
+---
+
+## Project layout
+
+```
+my-tool/
+  cli.config.ts       # CLI metadata, config schema, typed helpers
+  main.ts             # Entry point — registers commands
+  commands/           # Built-in commands
+  plugins/            # Optional: plugin directories
+  dist/               # Build output (git-ignored)
+```
+
+---
+
+## Cape CLI reference
+
+| Command | Description |
+|---|---|
+| `cape init <name>` | Scaffold a new Cape CLI project |
+| `cape run [command]` | Run commands in dev mode (no build) |
+| `cape command add` | Generate a new command file |
+| `cape build` | Compile to a standalone binary |
+| `cape build --all-platforms` | Build for darwin/linux × arm64/x64 |
+| `cape install` | Install the local binary to `~/.<name>/bin/` |
+| `cape publish` | Create a GitHub release with dist/ assets |
+| `cape publish --draft` | Create as draft (publish manually on GitHub) |
+
+---
+
+## License
+
+MIT
