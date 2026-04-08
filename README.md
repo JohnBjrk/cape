@@ -46,11 +46,11 @@ This scaffolds a project with a `cli.config.ts`, a `main.ts` entry point, and a 
 ### 2. Run in dev mode
 
 ```sh
-cape run hello --name World
+cape run hello -- --name World
 # Hello, World!
 ```
 
-No build step. Cape runs your TypeScript directly.
+`cape run` passes everything after `--` to your CLI. No build step — Cape runs your TypeScript directly.
 
 ### 3. Add a command
 
@@ -99,10 +99,10 @@ await cli.run();
 Try it:
 
 ```sh
-cape run greet --name Alice
+cape run greet -- --name Alice
 # Hello, Alice!
 
-cape run greet --name Alice --loud
+cape run greet -- --name Alice --loud
 # HELLO, ALICE!
 ```
 
@@ -197,18 +197,20 @@ curl -fsSL https://github.com/your-org/my-tool/releases/latest/download/install.
 
 ## Plugins
 
-Plugins let you (or your users) extend a CLI without touching the core repo. A plugin is a TypeScript command file paired with a small `.plugin.toml` manifest.
+Plugins let you extend an installed CLI without touching its source repo. A plugin is a TypeScript command file paired with a small `.plugin.toml` manifest — drop it in the right directory and it appears automatically.
 
-### Configure plugin discovery
+Say you've installed `my-tool` and want to add a `status` command for your own workflow.
 
-Add a `.cape.toml` to your project root:
+### 1. Tell my-tool where to find plugins
+
+Create a `.my-tool.toml` in any directory where you'll run the CLI (or in `~/.config/my-tool/config.toml` for global plugins):
 
 ```toml
-[cape]
+[my-tool]
 pluginDirs = ["./plugins"]
 ```
 
-### Write a plugin
+### 2. Write the plugin
 
 Create `plugins/status/status.plugin.toml`:
 
@@ -234,13 +236,23 @@ export default defineCommand({
     },
   },
   async run(args, runtime) {
-    runtime.print(`Checking status in ${args.flags.env}...`);
+    runtime.print(`Checking status for ${args.flags.env}...`);
     // fetch from your API, print a table, etc.
   },
 });
 ```
 
-That's it. Run `cape run status` (or just `my-tool status` after building) and the command appears automatically — no registration required.
+### 3. Run it
+
+```sh
+my-tool status
+# Checking status for staging...
+
+my-tool status --env production
+# Checking status for production...
+```
+
+No registration, no build step, no PR to the `my-tool` repo.
 
 ---
 
@@ -262,7 +274,7 @@ my-tool/
 | Command | Description |
 |---|---|
 | `cape init <name>` | Scaffold a new Cape CLI project |
-| `cape run [command]` | Run commands in dev mode (no build) |
+| `cape run [command] -- [args]` | Run commands in dev mode (no build) |
 | `cape command add` | Generate a new command file |
 | `cape build` | Compile to a standalone binary |
 | `cape build --all-platforms` | Build for darwin/linux × arm64/x64 |
