@@ -195,26 +195,36 @@ Plugins let you extend an installed CLI without touching its source repo. A plug
 
 Say you've installed `my-tool` and want to add a `status` command for your own workflow.
 
-### 1. Scaffold the plugin
+### 1. Configure a plugin directory
+
+Create a `.my-tool.toml` in the directory where you'll keep your plugins:
+
+```toml
+[my-tool]
+pluginDirs = ["./plugins"]
+```
+
+### 2. Scaffold the plugin
 
 ```sh
 my-tool plugin create
 # ? Plugin name: status
 # ? Description: Show deployment status
+# ? Location: ./plugins/  (local)
 ```
 
-This generates two files in `commands/status/`:
+This generates two files in `plugins/status/`:
 
 ```
-commands/status/status.plugin.toml
-commands/status/status.ts
+plugins/status/status.plugin.toml
+plugins/status/status.ts
 ```
 
 It also creates a `.my-tool/` folder with typed helpers — commit this alongside your plugin.
 
-### 2. Fill in the logic
+### 3. Fill in the logic
 
-Open `commands/status/status.ts` and add your implementation:
+Open `plugins/status/status.ts` and add your implementation:
 
 ```ts
 import { defineCommand } from "../../.my-tool/index.ts";
@@ -234,7 +244,7 @@ export default defineCommand({
 });
 ```
 
-### 3. Run it
+### 4. Run it
 
 ```sh
 my-tool status
