@@ -163,7 +163,11 @@ async function buildAllPlatforms(
 }
 
 type BuildRuntime = { printError: (s: string) => void };
-type BunBuildResult = { success: boolean; logs: { message: string }[]; outputs: { path: string }[] };
+type BunBuildResult = {
+  success: boolean;
+  logs: { message: string }[];
+  outputs: { path: string }[];
+};
 
 /** Build for the current platform using Bun.build(), falling back to spawning
  *  the bun CLI if Bun.build() fails (known ELF issue on linux/x64). */
