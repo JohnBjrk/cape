@@ -15,11 +15,11 @@ for (let i = 0; i < argv.length; i++) {
   if (arg === "--debug") {
     opts.debug = true;
   } else if (arg === "--debug-at") {
-    opts.debugAt = argv[++i];
+    opts.debugAt = argv[++i]!;
   } else if (arg === "--debug-before") {
-    opts.debugBefore = argv[++i];
-  } else if (!arg.startsWith("--")) {
-    scenarioPaths.push(arg);
+    opts.debugBefore = argv[++i]!;
+  } else if (!arg!.startsWith("--")) {
+    scenarioPaths.push(arg!);
   } else {
     console.error(`Unknown flag: ${arg}`);
     printUsage();
