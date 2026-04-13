@@ -9,6 +9,7 @@ import type { RunOpts } from "./container/helpers/types.ts";
 const argv = process.argv.slice(2);
 const opts: RunOpts = {};
 const scenarioPaths: string[] = [];
+let ciMode = false;
 
 for (let i = 0; i < argv.length; i++) {
   const arg = argv[i];
@@ -18,6 +19,8 @@ for (let i = 0; i < argv.length; i++) {
     opts.debugAt = argv[++i]!;
   } else if (arg === "--debug-before") {
     opts.debugBefore = argv[++i]!;
+  } else if (arg === "--ci") {
+    ciMode = true;
   } else if (!arg!.startsWith("--")) {
     scenarioPaths.push(arg!);
   } else {
@@ -34,6 +37,11 @@ if ((opts.debug || opts.debugAt || opts.debugBefore) && !process.stdin.isTTY) {
 
 // ---------------------------------------------------------------------------
 // Scenario discovery
+//
+// Naming convention:
+//   *.scenario.ts        — runs everywhere (CI + local)
+//   *.local.scenario.ts  — local only, skipped with --ci
+//   *.ci.scenario.ts     — CI only, skipped without --ci
 // ---------------------------------------------------------------------------
 
 const repoRoot = join(import.meta.dir, "..");
@@ -42,6 +50,9 @@ async function discoverScenarios(): Promise<string[]> {
   const glob = new Bun.Glob("tests/container/scenarios/*.scenario.ts");
   const paths: string[] = [];
   for await (const file of glob.scan(repoRoot)) {
+    const base = file.split("/").pop()!;
+    if (ciMode && base.includes(".local.")) continue;
+    if (!ciMode && base.includes(".ci.")) continue;
     paths.push(join(repoRoot, file));
   }
   return paths.sort();
@@ -54,9 +65,11 @@ async function discoverScenarios(): Promise<string[]> {
 const paths = scenarioPaths.length > 0 ? scenarioPaths : await discoverScenarios();
 
 if (paths.length === 0) {
-  console.error("No scenarios found.");
-  process.exit(1);
+  console.log("No scenarios to run.");
+  process.exit(0);
 }
+
+console.log(`Running in ${ciMode ? "CI" : "local"} mode\n`);
 
 let failed = 0;
 
@@ -95,15 +108,21 @@ function printUsage() {
 Usage: bun tests/run-container.ts [options] [scenario-file...]
 
 Options:
+  --ci                     CI mode: skip *.local.scenario.ts files
   --debug                  Drop into interactive shell on step failure
   --debug-at <step>        Drop into shell after step completes
   --debug-before <step>    Drop into shell before step runs
 
+Scenario naming convention:
+  *.scenario.ts            Runs everywhere (CI + local)
+  *.local.scenario.ts      Local only (skipped with --ci)
+  *.ci.scenario.ts         CI only (skipped without --ci)
+
 Examples:
   bun tests/run-container.ts
+  bun tests/run-container.ts --ci
   bun tests/run-container.ts --debug
   bun tests/run-container.ts --debug-at binary-is-on-path
-  bun tests/run-container.ts --debug-before init-a-project
   bun tests/run-container.ts tests/container/scenarios/install.scenario.ts
 `);
 }

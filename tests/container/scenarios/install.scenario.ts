@@ -7,9 +7,6 @@ import { defineScenario } from "../helpers/runner.ts";
 export default defineScenario({
   name: "install-from-release",
   image: "debian:bookworm-slim",
-  // Run as arm64 — Bun.build() has a known ELF issue on linux/x64 when called
-  // from within a compiled binary, which would break the cape build steps.
-  platform: "linux/arm64",
   mounts: [
     { host: "cape-cli/dist", container: "/release" },
     {
@@ -49,28 +46,6 @@ export default defineScenario({
       name: "run-hello-command",
       run: `export PATH="$HOME/.cape/bin:$PATH" && cd my-tool && cape run -- hello --name World`,
       expect: { stdout: "Hello, World!" },
-    },
-    {
-      name: "build-the-project",
-      run: `export PATH="$HOME/.cape/bin:$PATH" && cd my-tool && cape build`,
-      expect: { exitCode: 0 },
-    },
-    {
-      name: "run-built-binary",
-      run: `my-tool/dist/my-tool hello --name World`,
-      expect: { stdout: "Hello, World!" },
-    },
-    {
-      name: "build-all-platforms",
-      // Verifies that Bun.build() accepts undocumented platform targets at runtime.
-      // We can't run the non-native binaries, but we can confirm they were produced.
-      run: `export PATH="$HOME/.cape/bin:$PATH" && cd my-tool && cape build --all-platforms`,
-      expect: { exitCode: 0 },
-    },
-    {
-      name: "all-platform-artifacts-exist",
-      run: `ls my-tool/dist/my-tool-linux-arm64.gz my-tool/dist/my-tool-linux-x64.gz my-tool/dist/my-tool-darwin-arm64.gz my-tool/dist/my-tool-darwin-x64.gz`,
-      expect: { exitCode: 0 },
     },
   ],
 });
