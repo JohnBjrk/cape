@@ -177,17 +177,23 @@ async function buildNativePlatform(
   outfile: string,
   runtime: BuildRuntime,
 ): Promise<string> {
-  const result = await (Bun.build as (opts: unknown) => Promise<BunBuildResult>)({
-    entrypoints: [entry],
-    outdir,
-    compile: true,
-    target: "bun",
-  });
+  try {
+    const result = await (Bun.build as (opts: unknown) => Promise<BunBuildResult>)({
+      entrypoints: [entry],
+      outdir,
+      compile: true,
+      target: "bun",
+    });
 
-  if (result.success) {
-    const builtPath = result.outputs[0]?.path ?? outfile;
-    if (builtPath !== outfile) await rename(builtPath, outfile);
-    return outfile;
+    if (result.success) {
+      const builtPath = result.outputs[0]?.path ?? outfile;
+      if (builtPath !== outfile) await rename(builtPath, outfile);
+      return outfile;
+    }
+  } catch {
+    // Bun.build() throws (rather than returning success: false) with an ELF
+    // section error on linux/x64 when called from within a compiled binary.
+    // Fall through to the bun CLI fallback below.
   }
 
   // Bun.build() can fail with an ELF section error on linux/x64 when called
@@ -198,7 +204,6 @@ async function buildNativePlatform(
   });
 
   if (proc.exitCode !== 0) {
-    for (const log of result.logs) runtime.printError(log.message);
     const stderr = new TextDecoder().decode(proc.stderr).trim();
     if (stderr) runtime.printError(stderr);
     runtime.printError(
