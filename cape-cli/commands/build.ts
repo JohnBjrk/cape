@@ -141,12 +141,24 @@ async function buildAllPlatforms(
     const outfile = join(outdir, `${name}-${os}-${arch}`);
     runtime.print(`  ${os}/${arch}...`);
 
-    // target: "bun-<os>-<arch>" is not in the TypeScript types but works at runtime.
-    const result = await (Bun.build as (opts: unknown) => Promise<{ success: boolean; logs: { message: string }[]; outputs: { path: string }[] }>)({
+    // Use "bun" for the native platform to avoid an ELF section error when
+    // Bun tries to cross-compile to its own current target. For all other
+    // platforms, "bun-<os>-<arch>" is not in the TypeScript types but works
+    // at runtime.
+    const currentOs = process.platform === "darwin" ? "darwin" : "linux";
+    const currentArch = process.arch === "arm64" ? "arm64" : "x64";
+    const isNative = os === currentOs && arch === currentArch;
+    const target = isNative ? "bun" : `bun-${os}-${arch}`;
+
+    const result = await (
+      Bun.build as (
+        opts: unknown,
+      ) => Promise<{ success: boolean; logs: { message: string }[]; outputs: { path: string }[] }>
+    )({
       entrypoints: [entry],
       outdir,
       compile: true,
-      target: `bun-${os}-${arch}`,
+      target,
     });
 
     if (!result.success) {

@@ -475,10 +475,7 @@ describe("promptedToArgv", () => {
 
 describe("fromSchema — prompt boolean", () => {
   it("skips boolean flags without prompt: true", async () => {
-    const result = await fromSchema(
-      { flags: { verbose: { type: "boolean" } } },
-      new Set<string>(),
-    );
+    const result = await fromSchema({ flags: { verbose: { type: "boolean" } } }, new Set<string>());
     expect(result).toEqual({});
   });
 

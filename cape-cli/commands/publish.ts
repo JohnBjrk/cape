@@ -48,7 +48,9 @@ export const publishCommand = defineCommand({
 
     const binGz = findCurrentPlatformBinary(distDir, name);
     if (!binGz) {
-      runtime.printError("Error: no binary found in dist/. Run `cape build --all-platforms` first.");
+      runtime.printError(
+        "Error: no binary found in dist/. Run `cape build --all-platforms` first.",
+      );
       runtime.exit(1);
       return;
     }
