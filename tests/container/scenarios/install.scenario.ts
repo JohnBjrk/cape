@@ -7,6 +7,9 @@ import { defineScenario } from "../helpers/runner.ts";
 export default defineScenario({
   name: "install-from-release",
   image: "debian:bookworm-slim",
+  // Run as arm64 — Bun.build() has a known ELF issue on linux/x64 when called
+  // from within a compiled binary, which would break the cape build steps.
+  platform: "linux/arm64",
   mounts: [
     { host: "cape-cli/dist", container: "/release" },
     {

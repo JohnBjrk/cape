@@ -21,6 +21,8 @@ export interface Mount {
 export interface Scenario {
   name: string;
   image: string;
+  /** Optional platform override, e.g. "linux/arm64". Passed to `docker run --platform`. */
+  platform?: string;
   mounts?: Mount[];
   steps: Step[];
 }

@@ -23,14 +23,16 @@ export async function startContainer(
   image: string,
   mounts: Mount[],
   repoRoot: string,
+  platform?: string,
 ): Promise<string> {
   const volumeArgs = mounts.flatMap(({ host, container }) => [
     "-v",
     `${join(repoRoot, host)}:${container}`,
   ]);
+  const platformArgs = platform ? ["--platform", platform] : [];
 
   const proc = Bun.spawnSync(
-    ["docker", "run", "-d", ...volumeArgs, image, "tail", "-f", "/dev/null"],
+    ["docker", "run", "-d", ...platformArgs, ...volumeArgs, image, "tail", "-f", "/dev/null"],
     { stdout: "pipe", stderr: "pipe" },
   );
 

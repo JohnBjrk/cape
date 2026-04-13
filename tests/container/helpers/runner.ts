@@ -40,7 +40,12 @@ export async function runScenario(
 
   await pullImage(scenario.image);
 
-  const containerId = await startContainer(scenario.image, scenario.mounts ?? [], repoRoot);
+  const containerId = await startContainer(
+    scenario.image,
+    scenario.mounts ?? [],
+    repoRoot,
+    scenario.platform,
+  );
   console.log(`  Container: cape-test-${shortId(containerId)}\n`);
 
   let containerRemoved = false;

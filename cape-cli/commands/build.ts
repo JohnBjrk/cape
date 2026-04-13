@@ -104,21 +104,41 @@ async function buildCurrentPlatform(
   const outfile = join(outdir, name);
 
   // Use Bun.build() directly — no subprocess, no dependency on bun in PATH.
-  const result = await Bun.build({
-    entrypoints: [entry],
-    outdir,
-    compile: true,
-    target: "bun",
-  });
+  // On linux/x64, Bun.build() throws an ELF section error when called from
+  // within a compiled binary; fall back to the bun CLI in that case.
+  let builtPath: string | undefined;
+  try {
+    const result = await Bun.build({
+      entrypoints: [entry],
+      outdir,
+      compile: true,
+      target: "bun",
+    });
 
-  if (!result.success) {
-    for (const log of result.logs) runtime.printError(log.message);
-    runtime.printError("Build failed.");
-    process.exit(1);
+    if (!result.success) {
+      for (const log of result.logs) runtime.printError(log.message);
+      runtime.printError("Build failed.");
+      process.exit(1);
+    }
+
+    builtPath = result.outputs[0]?.path;
+  } catch {
+    // Fall back to spawning the bun CLI.
+    const proc = Bun.spawnSync(["bun", "build", "--compile", `--outfile=${outfile}`, entry], {
+      stdout: "pipe",
+      stderr: "pipe",
+    });
+    if (proc.exitCode !== 0) {
+      const stderr = new TextDecoder().decode(proc.stderr).trim();
+      if (stderr) runtime.printError(stderr);
+      runtime.printError(
+        "Build failed. On linux/x64, cape build requires bun to be installed due to a known Bun issue.",
+      );
+      process.exit(1);
+    }
+    builtPath = outfile;
   }
 
-  // Bun names the output after the entry filename — rename to the CLI name.
-  const builtPath = result.outputs[0]?.path;
   if (builtPath && builtPath !== outfile) {
     await rename(builtPath, outfile);
   }
