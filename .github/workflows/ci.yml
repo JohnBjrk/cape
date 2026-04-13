@@ -1,0 +1,53 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  # Uncomment to use as a PR gate:
+  # pull_request:
+  #   branches: [main]
+
+jobs:
+  checks:
+    name: Format, typecheck & unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Format check
+        run: bun run format:check
+
+      - name: Typecheck & unit tests
+        run: bun run test
+
+  container:
+    name: Container integration tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Build and install cape
+        run: bun run cape:install
+
+      - name: Add cape to PATH
+        run: echo "$HOME/.cape/bin" >> $GITHUB_PATH
+
+      - name: Build all platform binaries
+        run: bun run cape:build:all
+
+      - name: Run container tests
+        run: bun run test:container
