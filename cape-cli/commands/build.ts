@@ -1,7 +1,7 @@
 import { defineCommand } from "../../src/cli.ts";
 import { resolve, join } from "node:path";
 import { existsSync } from "node:fs";
-import { mkdir, chmod, unlink } from "node:fs/promises";
+import { mkdir, chmod, unlink, rename } from "node:fs/promises";
 import { generateInstallScript } from "../../src/config/install.ts";
 import { CAPE_BUNDLE } from "../src/embedded.ts";
 import { resolveName, refreshCapeModule } from "./helpers.ts";
@@ -98,19 +98,31 @@ async function buildCurrentPlatform(
   name: string,
   entry: string,
   outdir: string,
-  cwd: string,
+  _cwd: string,
   runtime: { printError: (s: string) => void; output: { success: (s: string) => void } },
 ): Promise<void> {
   const outfile = join(outdir, name);
-  const proc = Bun.spawnSync(["bun", "build", "--compile", `--outfile=${outfile}`, entry], {
-    cwd,
-    stdout: "inherit",
-    stderr: "inherit",
+
+  // Use Bun.build() directly — no subprocess, no dependency on bun in PATH.
+  const result = await Bun.build({
+    entrypoints: [entry],
+    outdir,
+    compile: true,
+    target: "bun",
   });
-  if (proc.exitCode !== 0) {
+
+  if (!result.success) {
+    for (const log of result.logs) runtime.printError(log.message);
     runtime.printError("Build failed.");
-    process.exit(proc.exitCode ?? 1);
+    process.exit(1);
   }
+
+  // Bun names the output after the entry filename — rename to the CLI name.
+  const builtPath = result.outputs[0]?.path;
+  if (builtPath && builtPath !== outfile) {
+    await rename(builtPath, outfile);
+  }
+
   runtime.output.success(`Built: ${outfile}`);
 }
 
@@ -118,7 +130,7 @@ async function buildAllPlatforms(
   name: string,
   entry: string,
   outdir: string,
-  cwd: string,
+  _cwd: string,
   runtime: {
     printError: (s: string) => void;
     output: { success: (s: string) => void };
@@ -129,14 +141,24 @@ async function buildAllPlatforms(
     const outfile = join(outdir, `${name}-${os}-${arch}`);
     runtime.print(`  ${os}/${arch}...`);
 
-    const proc = Bun.spawnSync(
-      ["bun", "build", "--compile", `--target=bun-${os}-${arch}`, `--outfile=${outfile}`, entry],
-      { cwd, stdout: "pipe", stderr: "inherit" },
-    );
+    // target: "bun-<os>-<arch>" is not in the TypeScript types but works at runtime.
+    const result = await (Bun.build as (opts: unknown) => Promise<{ success: boolean; logs: { message: string }[]; outputs: { path: string }[] }>)({
+      entrypoints: [entry],
+      outdir,
+      compile: true,
+      target: `bun-${os}-${arch}`,
+    });
 
-    if (proc.exitCode !== 0) {
+    if (!result.success) {
+      for (const log of result.logs) runtime.printError(log.message);
       runtime.printError(`  Failed: ${os}/${arch}`);
-      process.exit(proc.exitCode ?? 1);
+      process.exit(1);
+    }
+
+    // Bun names the output after the entry filename — rename to the platform-specific name.
+    const builtPath = result.outputs[0]?.path;
+    if (builtPath && builtPath !== outfile) {
+      await rename(builtPath, outfile);
     }
 
     // Compress and replace the plain binary with a .gz

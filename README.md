@@ -31,7 +31,7 @@ cape --version
 ### 1. Create a new CLI
 
 ```sh
-cape init my-tool
+cape init --name my-tool
 cd my-tool
 ```
 
@@ -40,7 +40,7 @@ This scaffolds a project with a `cli.config.ts`, a `main.ts` entry point, and a 
 ### 2. Run in dev mode
 
 ```sh
-cape run hello -- --name World
+cape run -- hello --name World
 # Hello, World!
 ```
 
@@ -93,10 +93,10 @@ await cli.run();
 Try it:
 
 ```sh
-cape run greet -- --name Alice
+cape run -- greet --name Alice
 # Hello, Alice!
 
-cape run greet -- --name Alice --loud
+cape run -- greet --name Alice --loud
 # HELLO, ALICE!
 ```
 
@@ -276,7 +276,7 @@ my-tool/
 | Command | Description |
 |---|---|
 | `cape init <name>` | Scaffold a new Cape CLI project |
-| `cape run [command] -- [args]` | Run commands in dev mode (no build) |
+| `cape run -- [command] [args]` | Run commands in dev mode (no build) |
 | `cape command add` | Generate a new command file |
 | `cape build` | Compile to a standalone binary |
 | `cape build --all-platforms` | Build for darwin/linux × arm64/x64 |
