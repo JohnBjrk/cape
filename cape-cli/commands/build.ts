@@ -141,37 +141,17 @@ async function buildAllPlatforms(
     const outfile = join(outdir, `${name}-${os}-${arch}`);
     runtime.print(`  ${os}/${arch}...`);
 
-    // Use "bun" for the native platform to avoid an ELF section error when
-    // Bun tries to cross-compile to its own current target. For all other
-    // platforms, "bun-<os>-<arch>" is not in the TypeScript types but works
-    // at runtime.
+    // "bun-<os>-<arch>" targets are not in the TypeScript types but work at
+    // runtime for cross-compilation. For the native platform, Bun.build() can
+    // fail with an ELF section error on linux/x64 — fall back to spawning the
+    // bun CLI in that case (bun is expected to be available for --all-platforms).
     const currentOs = process.platform === "darwin" ? "darwin" : "linux";
     const currentArch = process.arch === "arm64" ? "arm64" : "x64";
     const isNative = os === currentOs && arch === currentArch;
-    const target = isNative ? "bun" : `bun-${os}-${arch}`;
 
-    const result = await (
-      Bun.build as (
-        opts: unknown,
-      ) => Promise<{ success: boolean; logs: { message: string }[]; outputs: { path: string }[] }>
-    )({
-      entrypoints: [entry],
-      outdir,
-      compile: true,
-      target,
-    });
-
-    if (!result.success) {
-      for (const log of result.logs) runtime.printError(log.message);
-      runtime.printError(`  Failed: ${os}/${arch}`);
-      process.exit(1);
-    }
-
-    // Bun names the output after the entry filename — rename to the platform-specific name.
-    const builtPath = result.outputs[0]?.path;
-    if (builtPath && builtPath !== outfile) {
-      await rename(builtPath, outfile);
-    }
+    const builtPath = isNative
+      ? await buildNativePlatform(entry, outdir, outfile, runtime)
+      : await buildCrossPlatform(entry, outdir, outfile, os, arch, runtime);
 
     // Compress and replace the plain binary with a .gz
     const compressed = Bun.gzipSync(await Bun.file(outfile).bytes(), { level: 9 });
@@ -180,4 +160,75 @@ async function buildAllPlatforms(
 
     runtime.output.success(`  Built: ${outfile}.gz`);
   }
+}
+
+type BuildRuntime = { printError: (s: string) => void };
+type BunBuildResult = { success: boolean; logs: { message: string }[]; outputs: { path: string }[] };
+
+/** Build for the current platform using Bun.build(), falling back to spawning
+ *  the bun CLI if Bun.build() fails (known ELF issue on linux/x64). */
+async function buildNativePlatform(
+  entry: string,
+  outdir: string,
+  outfile: string,
+  runtime: BuildRuntime,
+): Promise<string> {
+  const result = await (Bun.build as (opts: unknown) => Promise<BunBuildResult>)({
+    entrypoints: [entry],
+    outdir,
+    compile: true,
+    target: "bun",
+  });
+
+  if (result.success) {
+    const builtPath = result.outputs[0]?.path ?? outfile;
+    if (builtPath !== outfile) await rename(builtPath, outfile);
+    return outfile;
+  }
+
+  // Bun.build() can fail with an ELF section error on linux/x64 when called
+  // from within a compiled binary. Fall back to spawning the bun CLI.
+  const proc = Bun.spawnSync(["bun", "build", "--compile", `--outfile=${outfile}`, entry], {
+    stdout: "pipe",
+    stderr: "pipe",
+  });
+
+  if (proc.exitCode !== 0) {
+    for (const log of result.logs) runtime.printError(log.message);
+    const stderr = new TextDecoder().decode(proc.stderr).trim();
+    if (stderr) runtime.printError(stderr);
+    runtime.printError(
+      `  Native build failed. Ensure bun is installed for --all-platforms builds on this platform.`,
+    );
+    process.exit(1);
+  }
+
+  return outfile;
+}
+
+/** Build for a non-native platform using Bun.build() cross-compilation. */
+async function buildCrossPlatform(
+  entry: string,
+  outdir: string,
+  outfile: string,
+  os: string,
+  arch: string,
+  runtime: BuildRuntime,
+): Promise<string> {
+  const result = await (Bun.build as (opts: unknown) => Promise<BunBuildResult>)({
+    entrypoints: [entry],
+    outdir,
+    compile: true,
+    target: `bun-${os}-${arch}`,
+  });
+
+  if (!result.success) {
+    for (const log of result.logs) runtime.printError(log.message);
+    runtime.printError(`  Failed: ${os}/${arch}`);
+    process.exit(1);
+  }
+
+  const builtPath = result.outputs[0]?.path ?? outfile;
+  if (builtPath !== outfile) await rename(builtPath, outfile);
+  return outfile;
 }
