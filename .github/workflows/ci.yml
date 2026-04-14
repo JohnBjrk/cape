@@ -24,6 +24,9 @@ jobs:
       - name: Format check
         run: bun run format:check
 
+      - name: Build cape binary
+        run: bun run cape:build
+
       - name: Typecheck & unit tests
         run: bun run test
 
