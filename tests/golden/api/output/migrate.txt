@@ -1,0 +1,2 @@
+$ cape run -- migrate
+✓ Applied 3 migrations

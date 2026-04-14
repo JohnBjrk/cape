@@ -1,0 +1,7 @@
+$ cape run -- info --service api --json
+{
+  "name": "api",
+  "status": "running",
+  "version": "1.4.2",
+  "uptime": "3d 14h"
+}

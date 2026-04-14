@@ -1,0 +1,2 @@
+$ cape run -- check --service api
+✓ api is running

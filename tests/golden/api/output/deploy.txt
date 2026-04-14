@@ -1,0 +1,3 @@
+$ cape run -- deploy --service api
+✓ Pushing to registry...
+✓ Deployed api v1.4.2 to staging

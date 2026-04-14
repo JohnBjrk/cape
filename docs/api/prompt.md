@@ -49,14 +49,29 @@ const region = await runtime.prompt.text({
 });
 ```
 
-With validation — return an error string to reject, `undefined` to accept:
+With validation — return an error string to reject, `undefined` to accept. A common pattern is to use the prompt as a fallback when a flag is not provided:
 
+<!-- golden: api/prompt/create.ts -->
 ```ts
-const tag = await runtime.prompt.text({
-  message: "Image tag",
-  validate: (v) => {
-    if (!v.trim()) return "Tag cannot be empty";
-    if (!/^[a-z0-9.-]+$/.test(v)) return "Use lowercase letters, numbers, dots, and hyphens";
+import { defineCommand } from "../cli.config.ts";
+
+export const createCommand = defineCommand({
+  name: "create",
+  description: "Create a new service",
+  schema: {
+    flags: {
+      name: { type: "string", description: "Service name" },
+    },
+  },
+  async run(args, runtime) {
+    const name = args.flags.name ?? await runtime.prompt.text({
+      message: "Service name",
+      validate: (v) => {
+        if (!v.trim()) return "Name cannot be empty";
+        if (!/^[a-z][a-z0-9-]*$/.test(v)) return "Use lowercase letters, numbers, and hyphens";
+      },
+    });
+    runtime.output.success(`Created service "${name}"`);
   },
 });
 ```
@@ -88,22 +103,64 @@ const runMigrations = await runtime.prompt.confirm({
 });
 ```
 
-**Automatic prompting**: boolean flags with `prompt: true` in the schema will automatically show a confirm prompt when the flag is not passed. See [Flags that prompt automatically](#flags-that-prompt-automatically).
+**Automatic prompting**: boolean flags with `prompt: true` in the schema will automatically show a confirm prompt when the flag is not passed:
+
+<!-- golden: api/prompt/wipe.ts -->
+```ts
+import { defineCommand } from "../cli.config.ts";
+
+export const wipeCommand = defineCommand({
+  name: "wipe",
+  description: "Delete all data in an environment",
+  schema: {
+    flags: {
+      env:   { type: "string",  required: true, description: "Target environment" },
+      force: { type: "boolean", prompt: true,   description: "Confirm deletion" },
+    },
+  },
+  async run(args, runtime) {
+    if (!args.flags.force) {
+      runtime.print("Aborted.");
+      return;
+    }
+    runtime.output.success(`Wiped ${args.flags.env}`);
+  },
+});
+```
 
 ---
 
 ## select
 
-Single choice from a fixed list. Returns the selected value.
+Single choice from a fixed list. Returns the selected value. When declared as a `required` flag with a `static` completion source of ≤ 8 choices, Cape shows a select prompt automatically — no `runtime.prompt.select()` call needed:
 
+<!-- golden: api/prompt/release.ts -->
 ```ts
-const env = await runtime.prompt.select({
-  message: "Target environment",
-  choices: ["development", "staging", "production"],
+import { defineCommand } from "../cli.config.ts";
+
+export const releaseCommand = defineCommand({
+  name: "release",
+  description: "Release to an environment",
+  schema: {
+    flags: {
+      env: {
+        type: "string",
+        required: true,
+        description: "Target environment",
+        complete: {
+          type: "static",
+          values: ["development", "staging", "production"],
+        },
+      },
+    },
+  },
+  async run(args, runtime) {
+    runtime.output.success(`Released to ${args.flags.env}`);
+  },
 });
 ```
 
-With a pre-selected default:
+You can also call `runtime.prompt.select()` directly when the prompt is not tied to a flag:
 
 ```ts
 const env = await runtime.prompt.select({
@@ -160,6 +217,38 @@ const features = await runtime.prompt.multiSelect({
 
 Label/value objects work here too — the prompt displays labels and returns the values of the checked choices.
 
+A common pattern is to use a repeatable flag as the non-interactive equivalent, and fall back to `multiSelect` when the flag is not provided:
+
+<!-- golden: api/prompt/tag.ts -->
+```ts
+import { defineCommand } from "../cli.config.ts";
+
+export const tagCommand = defineCommand({
+  name: "tag",
+  description: "Apply labels to a service",
+  schema: {
+    flags: {
+      service: { type: "string", required: true, description: "Target service" },
+      label:   { type: "string", multiple: true, description: "Labels to apply (repeatable)" },
+    },
+  },
+  async run(args, runtime) {
+    const labels = args.provided.has("label")
+      ? args.flags.label
+      : await runtime.prompt.multiSelect({
+          message: "Select labels to apply",
+          choices: ["stable", "canary", "deprecated", "internal", "public", "beta"],
+        });
+
+    if (labels.length === 0) {
+      runtime.print("No labels applied.");
+      return;
+    }
+    runtime.output.success(`Applied to ${args.flags.service}: ${labels.join(", ")}`);
+  },
+});
+```
+
 ---
 
 ## autocomplete
@@ -180,6 +269,34 @@ const service = await runtime.prompt.autocomplete({
 ### Dynamic choices
 
 Pass an async function. It receives the current query string and an `AbortSignal` (aborted when a new query supersedes the current fetch). Results are debounced automatically.
+
+<!-- golden: api/prompt/logs.ts -->
+```ts
+import { defineCommand } from "../cli.config.ts";
+
+export const logsCommand = defineCommand({
+  name: "logs",
+  description: "Tail logs for a service",
+  schema: {
+    flags: {
+      service: { type: "string", description: "Service name" },
+    },
+  },
+  async run(args, runtime) {
+    const service = args.flags.service ?? await runtime.prompt.autocomplete({
+      message: "Service",
+      choices: async (query, signal) => {
+        // In production this would fetch from an API
+        const all = ["api-gateway", "auth-service", "billing", "data-pipeline", "frontend"];
+        return all.filter((s) => s.includes(query));
+      },
+    });
+    runtime.output.success(`Tailing logs for ${service}...`);
+  },
+});
+```
+
+Or fetching from a real API:
 
 ```ts
 const repo = await runtime.prompt.autocomplete({

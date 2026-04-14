@@ -1,0 +1,9 @@
+$ cape run -- services
+Name	Status	Replicas
+api	running	3
+worker	stopped	0
+frontend	running	2
+
+api
+worker
+frontend
