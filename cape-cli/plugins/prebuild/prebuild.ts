@@ -15,6 +15,27 @@ export default defineCommand({
     const capeGuideDocsPath = join(repoRoot, "cape-cli/src/embedded-guide.ts");
 
     // -------------------------------------------------------------------------
+    // 0. Ensure placeholder files exist so Bun.build and tsc can resolve imports
+    //    on a fresh clone where the generated files don't exist yet.
+    // -------------------------------------------------------------------------
+
+    await Promise.all([
+      ensurePlaceholder(srcEmbedPath, `export const CAPE_TYPES: string = "";\n`),
+      ensurePlaceholder(
+        srcEmbedDocsPath,
+        `export const FRAMEWORK_DOCS: Record<string, string> = {};\n`,
+      ),
+      ensurePlaceholder(
+        outPath,
+        `export const CAPE_BUNDLE: string = "";\nexport const CAPE_TYPES: string = "";\n`,
+      ),
+      ensurePlaceholder(
+        capeGuideDocsPath,
+        `export const GUIDE_DOCS: Array<{ title: string; content: string }> = [];\n`,
+      ),
+    ]);
+
+    // -------------------------------------------------------------------------
     // 1. Bundle the cape source as ESM
     // -------------------------------------------------------------------------
 
@@ -165,6 +186,15 @@ export default defineCommand({
 // ---------------------------------------------------------------------------
 // Docs helpers
 // ---------------------------------------------------------------------------
+
+async function ensurePlaceholder(path: string, content: string): Promise<void> {
+  if (!(await Bun.file(path).exists())) {
+    await Bun.write(
+      path,
+      `// Placeholder — run \`cape prebuild\` or \`bun run cape:bootstrap:prebuild\` to populate.\n${content}`,
+    );
+  }
+}
 
 /** Reads docs/api/ — embedded into every Cape-built tool's `docs serve`. */
 async function readFrameworkDocs(docsDir: string): Promise<Record<string, string>> {
