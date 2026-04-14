@@ -1,0 +1,5 @@
+$ cape build
+Building My Tool v0.1.0...
+  [Xms]  bundle  5 modules
+  [Xms] compile  dist/my-tool
+✓ Built: dist/my-tool

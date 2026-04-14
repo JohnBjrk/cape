@@ -165,21 +165,48 @@ HELLO, ALICE!
 
 Compile to a self-contained binary:
 
+<!-- golden: build/build.txt cmd -->
 ```sh
 cape build
 ```
 
-This writes `dist/my-tool`. Install it to `~/.my-tool/bin/`:
+<!-- golden: build/build.txt output -->
+```text
+Building My Tool v0.1.0...
+  [Xms]  bundle  5 modules
+  [Xms] compile  dist/my-tool
+✓ Built: dist/my-tool
+```
 
+Install to `~/.my-tool/bin/`:
+
+<!-- golden: build/install.txt cmd -->
 ```sh
 cape install
+```
+
+<!-- golden: build/install.txt output -->
+```text
+✓ Installed: ~/.my-tool/bin/my-tool
+
+Make sure the directory is in your PATH:
+  export PATH="$HOME/.my-tool/bin:$PATH"
 ```
 
 Add the bin dir to your PATH and run it directly:
 
 ```sh
 export PATH="$HOME/.my-tool/bin:$PATH"
+```
+
+<!-- golden: build/greet-alice.txt cmd -->
+```sh
 my-tool greet --name Alice
+```
+
+<!-- golden: build/greet-alice.txt output -->
+```text
+Hello, Alice!
 ```
 
 ---
@@ -254,39 +281,53 @@ Plugins let you extend an installed CLI without touching its source repo. A plug
 
 Say you've installed `my-tool` and want to add a `status` command for your own workflow.
 
-### 1. Configure a plugin directory
+### 1. Scaffold a plugin
 
-Create a `.my-tool.toml` in the directory where you'll keep your plugins:
-
-```toml
-[my-tool]
-pluginDirs = ["./plugins"]
-```
-
-### 2. Scaffold the plugin
-
+<!-- golden: plugins/create.txt cmd -->
 ```sh
-my-tool plugin create
-# ? Plugin name: status
-# ? Description: Show deployment status
-# ? Location: ./plugins/  (local)
+my-tool plugin create --name status --description "Show deployment status"
 ```
 
-This generates two files in `plugins/status/`:
+<!-- golden: plugins/create.txt output -->
+```text
+✓ Created plugin "status"
+  Location: ~/.config/my-tool/plugins/status
 
+No registration needed — auto-discovered the next time you run the CLI.
 ```
-plugins/status/status.plugin.toml
-plugins/status/status.ts
-```
 
-It also creates a `.my-tool/` folder with typed helpers — commit this alongside your plugin.
+### 2. Fill in the logic
 
-### 3. Fill in the logic
+This generates a scaffold at the reported location:
 
-Open `plugins/status/status.ts` and add your implementation:
-
+<!-- golden: plugins/status.ts -->
 ```ts
-import { defineCommand } from "../../.my-tool/index.ts";
+// defineCommand is a no-op identity helper — no package install needed.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const defineCommand = (def: any) => def;
+
+export default defineCommand({
+  name: "status",
+  description: "Show deployment status",
+  schema: {
+    flags: {
+      // example: { type: "string", description: "An example flag" },
+    },
+  },
+  async run(args, runtime) {
+
+  // Note: runtime.config is untyped (Record<string, unknown>)
+
+    runtime.print("Running status...");
+  },
+});
+```
+
+Open it and add your implementation:
+
+<!-- golden: plugins/status-filled.ts -->
+```ts
+const defineCommand = (def: any) => def;
 
 export default defineCommand({
   name: "status",
@@ -298,19 +339,30 @@ export default defineCommand({
   },
   async run(args, runtime) {
     runtime.print(`Checking status for ${args.flags.env}...`);
-    // fetch from your API, print a table, etc.
   },
 });
 ```
 
-### 4. Run it
+### 3. Run it
 
+<!-- golden: plugins/status.txt cmd -->
 ```sh
 my-tool status
-# Checking status for staging...
+```
 
+<!-- golden: plugins/status.txt output -->
+```text
+Checking status for staging...
+```
+
+<!-- golden: plugins/status-env.txt cmd -->
+```sh
 my-tool status --env production
-# Checking status for production...
+```
+
+<!-- golden: plugins/status-env.txt output -->
+```text
+Checking status for production...
 ```
 
 No registration, no build step, no PR to the `my-tool` repo.

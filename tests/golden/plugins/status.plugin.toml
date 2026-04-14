@@ -1,0 +1,5 @@
+name = "status"
+description = "Show deployment status"
+command = "./status.ts"
+enabled = true
+frameworkVersion = "1.0.0"

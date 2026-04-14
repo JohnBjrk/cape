@@ -12,9 +12,15 @@ const GOLDEN_DIR = join(import.meta.dir, "../../golden");
  *
  * Golden files live at tests/golden/ and should be committed to the repo.
  */
-export async function golden(name: string, cmd: string[], output: string): Promise<void> {
+export async function golden(
+  name: string,
+  cmd: string[],
+  output: string,
+  opts?: { normalize?: (s: string) => string },
+): Promise<void> {
   const file = join(GOLDEN_DIR, `${name}.txt`);
-  const content = `$ ${shellJoin(normalizeCmd(cmd))}\n${stripAnsi(output).trimEnd()}\n`;
+  const normalized = opts?.normalize ? opts.normalize(output) : output;
+  const content = `$ ${shellJoin(normalizeCmd(cmd))}\n${stripAnsi(normalized).trimEnd()}\n`;
 
   if (process.env.UPDATE_GOLDEN === "1") {
     await mkdir(dirname(file), { recursive: true });

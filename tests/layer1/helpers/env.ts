@@ -21,6 +21,12 @@ export interface ExecOpts {
    * Run with UPDATE_GOLDEN=1 to write or refresh golden files.
    */
   golden?: string;
+  /**
+   * Optional transform applied to stdout before writing/comparing the golden.
+   * Useful for stripping volatile absolute paths from output — e.g.:
+   *   normalize: (s) => s.replaceAll(env.home, "~")
+   */
+  normalize?: (s: string) => string;
 }
 
 export class TestEnv {
@@ -68,7 +74,7 @@ export class TestEnv {
     const result = { stdout, stderr, exitCode, ok: exitCode === 0 };
 
     if (opts.golden) {
-      await captureGolden(opts.golden, cmd, stdout);
+      await captureGolden(opts.golden, cmd, stdout, { normalize: opts.normalize });
     }
 
     return result;

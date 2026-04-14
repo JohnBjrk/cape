@@ -1,0 +1,5 @@
+$ cape install
+✓ Installed: ~/.my-tool/bin/my-tool
+
+Make sure the directory is in your PATH:
+  export PATH="$HOME/.my-tool/bin:$PATH"
