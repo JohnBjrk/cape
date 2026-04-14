@@ -25,5 +25,11 @@
     "noUnusedLocals": false,
     "noUnusedParameters": false,
     "noPropertyAccessFromIndexSignature": false
-  }
+  },
+  "exclude": [
+    "node_modules",
+    // Golden snapshot files are stored test fixtures, not source — they import
+    // from 'cape' which isn't resolvable outside the scaffolded project context.
+    "tests/golden"
+  ]
 }

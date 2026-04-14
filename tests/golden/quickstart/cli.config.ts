@@ -3,7 +3,8 @@ import type { RuntimeWith, ConfigField, ConfigSchema } from "cape";
 
 // Declare top-level config keys here (available as runtime.config in all commands).
 // Example: apiUrl: { type: "string", description: "Base API URL" }
-const globalConfig = defineConfigSchema({});
+const globalConfig = defineConfigSchema({
+});
 
 export default defineConfig({
   name: "my-tool",
@@ -20,10 +21,8 @@ export { defineCommandConfig };
 
 // CommandRuntime<CC> — typed runtime for built-in commands.
 // Use as the type for runtime parameters when passing to helper classes/functions.
-export type CommandRuntime<CC extends ConfigSchema = Record<never, ConfigField>> = RuntimeWith<
-  CC,
-  typeof globalConfig
->;
+export type CommandRuntime<CC extends ConfigSchema = Record<never, ConfigField>> =
+  RuntimeWith<CC, typeof globalConfig>;
 
 // ---------------------------------------------------------------------------
 // Config file reference (.my-tool.toml or ~/.config/my-tool/config.toml)

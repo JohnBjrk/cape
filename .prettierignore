@@ -2,3 +2,5 @@ node_modules/
 # Generated files — do not format
 src/embedded.ts
 cape-cli/src/embedded.ts
+# Golden snapshot files are stored test fixtures — formatting would cause mismatches
+tests/golden/
