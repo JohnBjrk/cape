@@ -1,0 +1,10 @@
+$ cape init --name my-tool --yes
+
+Scaffolding my-tool...
+✓ Created my-tool/
+
+Next steps:
+  cd my-tool
+  cape run --help            # run in dev mode
+  cape command add           # add a new command
+  cape build                 # compile to a standalone binary

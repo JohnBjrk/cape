@@ -1,0 +1,2 @@
+$ cape run -- hello --name World
+Hello, World!

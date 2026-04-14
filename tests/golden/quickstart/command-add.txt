@@ -1,0 +1,6 @@
+$ cape command add --name greet --description "Greet someone"
+✓ Created commands/greet.ts
+
+Add it to your CLI in main.ts:
+  import { greetCommand } from "./commands/greet.ts";
+  const cli = createCli(config, [..., greetCommand]);
