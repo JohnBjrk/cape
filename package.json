@@ -20,6 +20,9 @@
     "cape:build": "bun run cape:prebuild && bun scripts/build.ts cape-cli/cli.config.ts",
     "cape:build:all": "bun run cape:prebuild && cd cape-cli && cape build --all-platforms",
     "cape:install": "bun run cape:build && mkdir -p $HOME/.cape/bin && cp dist/cape $HOME/.cape/bin/cape && echo 'Installed cape to ~/.cape/bin/cape'",
-    "test:container": "bun tests/run-container.ts"
+    "test:container": "bun tests/run-container.ts",
+    "hooks:install": "git config core.hooksPath .githooks && echo 'Git hooks installed.'",
+    "docs:expand": "bun scripts/expand-golden.ts",
+    "docs:check": "bun scripts/expand-golden.ts --check"
   }
 }

@@ -1,7 +1,7 @@
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, isAbsolute } from "node:path";
-import { golden as captureGolden } from "./golden.ts";
+import { golden as captureGolden, snapshot as captureSnapshot } from "./golden.ts";
 
 export interface ExecResult {
   stdout: string;
@@ -84,6 +84,15 @@ export class TestEnv {
 
   async write(relativePath: string, content: string): Promise<void> {
     await Bun.write(join(this.root, relativePath), content);
+  }
+
+  /**
+   * Capture or verify a golden snapshot for a file in the test env.
+   * `goldenName` should include the extension (e.g. "quickstart/greet.ts").
+   */
+  async snapshot(relativePath: string, goldenName: string): Promise<void> {
+    const content = await this.read(relativePath);
+    await captureSnapshot(goldenName, content);
   }
 
   async cleanup(): Promise<void> {

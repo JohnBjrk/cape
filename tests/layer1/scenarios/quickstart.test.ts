@@ -15,6 +15,9 @@ test("cape init scaffolds a project", async () => {
   expect(await env.exists("my-tool/cli.config.ts")).toBe(true);
   expect(await env.exists("my-tool/main.ts")).toBe(true);
   expect(await env.exists("my-tool/commands/hello.ts")).toBe(true);
+  await env.snapshot("my-tool/cli.config.ts", "quickstart/cli.config.ts");
+  await env.snapshot("my-tool/main.ts", "quickstart/main.ts");
+  await env.snapshot("my-tool/commands/hello.ts", "quickstart/commands/hello.ts");
 });
 
 test("cape run executes a command", async () => {
@@ -38,6 +41,7 @@ test("cape command add generates a command file", async () => {
   );
   expect(r.exitCode).toBe(0);
   expect(await env.exists("my-tool/commands/greet.ts")).toBe(true);
+  await env.snapshot("my-tool/commands/greet.ts", "quickstart/commands/greet.ts");
 });
 
 test("generated command file has correct structure", async () => {

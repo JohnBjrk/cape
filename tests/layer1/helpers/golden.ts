@@ -5,11 +5,12 @@ const GOLDEN_DIR = join(import.meta.dir, "../../golden");
 
 /**
  * Capture or verify a golden file for a command + its output.
+ * The file is always written as <name>.txt.
  *
- * Normal runs: compare output against the stored golden file and throw on mismatch.
- * UPDATE_GOLDEN=1: write (or overwrite) the golden file with the current output.
+ * Normal runs: compare against the stored file and throw on mismatch.
+ * UPDATE_GOLDEN=1: write (or overwrite) the golden file.
  *
- * Golden files live at tests/golden/<name>.txt and should be committed to the repo.
+ * Golden files live at tests/golden/ and should be committed to the repo.
  */
 export async function golden(name: string, cmd: string[], output: string): Promise<void> {
   const file = join(GOLDEN_DIR, `${name}.txt`);
@@ -21,7 +22,9 @@ export async function golden(name: string, cmd: string[], output: string): Promi
     return;
   }
 
-  const existing = await Bun.file(file).text().catch(() => null);
+  const existing = await Bun.file(file)
+    .text()
+    .catch(() => null);
 
   if (existing === null) {
     throw new Error(
@@ -51,6 +54,41 @@ function normalizeCmd(cmd: string[]): string[] {
 /** Join command args, quoting any that contain spaces. */
 function shellJoin(cmd: string[]): string {
   return cmd.map((a) => (a.includes(" ") ? `"${a}"` : a)).join(" ");
+}
+
+/**
+ * Capture or verify a golden snapshot for a raw file's content.
+ * The extension in `name` determines the file type (e.g. "quickstart/greet.ts").
+ *
+ * Normal runs: compare against the stored file and throw on mismatch.
+ * UPDATE_GOLDEN=1: write (or overwrite) the golden file.
+ */
+export async function snapshot(name: string, content: string): Promise<void> {
+  const file = join(GOLDEN_DIR, name);
+
+  if (process.env.UPDATE_GOLDEN === "1") {
+    await mkdir(dirname(file), { recursive: true });
+    await Bun.write(file, content);
+    return;
+  }
+
+  const existing = await Bun.file(file)
+    .text()
+    .catch(() => null);
+
+  if (existing === null) {
+    throw new Error(
+      `Golden snapshot missing: tests/golden/${name}\n` +
+        `Run UPDATE_GOLDEN=1 bun test to create it.`,
+    );
+  }
+
+  if (existing !== content) {
+    const diff = unified(existing, content);
+    throw new Error(
+      `Snapshot mismatch: ${name}\n\n${diff}\nRun UPDATE_GOLDEN=1 bun test to update.`,
+    );
+  }
 }
 
 /** Strip ANSI escape codes so golden files are plain text. */

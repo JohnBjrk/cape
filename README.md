@@ -30,34 +30,51 @@ cape --version
 
 ### 1. Create a new CLI
 
+<!-- golden: quickstart/init.txt -->
 ```sh
-cape init --name my-tool
-cd my-tool
+$ cape init --name my-tool --yes
+
+Scaffolding my-tool...
+✓ Created my-tool/
+
+Next steps:
+  cd my-tool
+  cape run --help            # run in dev mode
+  cape command add           # add a new command
+  cape build                 # compile to a standalone binary
 ```
 
 This scaffolds a project with a `cli.config.ts`, a `main.ts` entry point, and a sample `hello` command.
 
 ### 2. Run in dev mode
 
+<!-- golden: quickstart/run.txt -->
 ```sh
-cape run -- hello --name World
-# Hello, World!
+$ cape run -- hello --name World
+Hello, World!
 ```
 
 `cape run` passes everything after `--` to your CLI. No build step — Cape runs your TypeScript directly.
 
 ### 3. Add a command
 
+<!-- golden: quickstart/command-add.txt -->
 ```sh
-cape command add
-# ? Command name: greet
-# ? Description: Greet someone by name
+$ cape command add --name greet --description "Greet someone"
+✓ Created commands/greet.ts
+
+Add it to your CLI in main.ts:
+  import { greetCommand } from "./commands/greet.ts";
+  const cli = createCli(config, [..., greetCommand]);
 ```
 
-This generates `commands/greet.ts`. Open it and fill in the logic:
+This generates a scaffold in `commands/greet.ts`:
+
+<!-- golden: quickstart/commands/greet.ts -->
+
+Open it and fill in the logic — for example:
 
 ```ts
-// commands/greet.ts
 import { defineCommand } from "../cli.config.ts";
 
 export const greetCommand = defineCommand({
