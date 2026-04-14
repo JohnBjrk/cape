@@ -9,6 +9,7 @@ import { BasicRuntime, type BasicRuntimeOptions } from "./runtime/basic.ts";
 import { discoverPlugins, loadPlugin } from "./loader/index.ts";
 import { readFrameworkConfig, ConfigValidationError } from "./runtime/config.ts";
 import { createBuiltinCommands } from "./builtin/index.ts";
+import { createDocsCommand } from "./builtin/docs.ts";
 import { resolveCompletions } from "./completion/resolve.ts";
 import { fromSchema, promptedToArgv } from "./prompt/from-schema.ts";
 import { text } from "./prompt/text.ts";
@@ -204,6 +205,22 @@ export interface CliConfig extends CliInfo {
    */
   setup?: {
     secrets?: SetupSecret[];
+  };
+
+  /**
+   * Configuration for the built-in `docs serve` command.
+   * Add custom pages to include alongside the Cape API reference.
+   */
+  docs?: {
+    /**
+     * Additional doc pages shown in `docs serve`.
+     * Use `file` (path relative to CWD) for source/dev mode.
+     * Use `content` (inline markdown string) for pages that must work from a compiled binary.
+     */
+    pages?: Array<
+      | { title: string; file: string; content?: never }
+      | { title: string; content: string; file?: never }
+    >;
   };
 }
 
@@ -534,7 +551,11 @@ async function dispatch(config: CliConfig, commands: CommandDef[], argv: string[
  * Users can shadow any of these by defining a command with the same name.
  */
 function buildBuiltins(config: CliConfig): CommandDef[] {
-  return [initCommand(config), completionsCommand(config)];
+  return [
+    initCommand(config),
+    completionsCommand(config),
+    createDocsCommand(config.name, config.pluginDirs ?? [], config.docs),
+  ];
 }
 
 function completionsCommand(config: CliConfig): CommandDef {

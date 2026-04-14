@@ -6,6 +6,8 @@ export interface MinimalManifest {
   command: string;
   enabled: boolean;
   frameworkVersion: string;
+  /** Optional path to a markdown file, relative to the *.plugin.toml location. Shown in `docs serve`. */
+  docs?: string;
 }
 
 /** A plugin found on disk but not yet imported. */

@@ -284,7 +284,7 @@ async function generatePluginTypes(
   await Promise.all([
     Bun.write(
       join(outDir, "cape.d.ts"),
-      CAPE_TYPES || "// Run `bun run cape:prebuild` then rebuild your CLI to populate.\n",
+      CAPE_TYPES || "// Run `cape prebuild` then rebuild your CLI to populate.\n",
     ),
     Bun.write(join(outDir, "index.ts"), pluginIndexTemplate(cliName, version, schema)),
   ]);

@@ -1,4 +1,5 @@
 import { defineConfig } from "../src/config/index.ts";
+import { GUIDE_DOCS } from "./src/embedded-guide.ts";
 
 export default defineConfig({
   name: "cape",
@@ -8,4 +9,7 @@ export default defineConfig({
   entry: "main.ts",
   outfile: "cape",
   install: { type: "github", repo: "JohnBjrk/cape" },
+  docs: {
+    pages: GUIDE_DOCS,
+  },
 });
