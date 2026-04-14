@@ -1,4 +1,4 @@
-const defineCommand = (def: any) => def;
+import { defineCommand } from "../../.my-tool/index.ts";
 
 export default defineCommand({
   name: "status",

@@ -1,5 +1,6 @@
-$ my-tool plugin create --name status --description "Show deployment status"
+$ my-tool plugin create --name status --description "Show deployment status" --location ./plugins
 ✓ Created plugin "status"
-  Location: ~/.config/my-tool/plugins/status
+  Location: ./plugins/status/
+  Types:    .my-tool/  (commit this folder — run 'my-tool plugin init' to update)
 
 No registration needed — auto-discovered the next time you run the CLI.

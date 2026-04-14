@@ -173,8 +173,6 @@ cape build
 <!-- golden: build/build.txt output -->
 ```text
 Building My Tool v0.1.0...
-  [Xms]  bundle  5 modules
-  [Xms] compile  dist/my-tool
 ✓ Built: dist/my-tool
 ```
 
@@ -281,30 +279,39 @@ Plugins let you extend an installed CLI without touching its source repo. A plug
 
 Say you've installed `my-tool` and want to add a `status` command for your own workflow.
 
-### 1. Scaffold a plugin
+### 1. Configure a plugin directory
+
+Create a `.my-tool.toml` in the directory where you'll keep your plugins:
+
+<!-- golden: plugins/my-tool.toml -->
+```toml
+[my-tool]
+pluginDirs = ["./plugins"]
+```
+
+### 2. Scaffold a plugin
 
 <!-- golden: plugins/create.txt cmd -->
 ```sh
-my-tool plugin create --name status --description "Show deployment status"
+my-tool plugin create --name status --description "Show deployment status" --location ./plugins
 ```
 
 <!-- golden: plugins/create.txt output -->
 ```text
 ✓ Created plugin "status"
-  Location: ~/.config/my-tool/plugins/status
+  Location: ./plugins/status/
+  Types:    .my-tool/  (commit this folder — run 'my-tool plugin init' to update)
 
 No registration needed — auto-discovered the next time you run the CLI.
 ```
 
-### 2. Fill in the logic
+### 3. Fill in the logic
 
-This generates a scaffold at the reported location:
+This generates a typed scaffold in `plugins/status/`:
 
 <!-- golden: plugins/status.ts -->
 ```ts
-// defineCommand is a no-op identity helper — no package install needed.
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const defineCommand = (def: any) => def;
+import { defineCommand } from "../../.my-tool/index.ts";
 
 export default defineCommand({
   name: "status",
@@ -316,8 +323,6 @@ export default defineCommand({
   },
   async run(args, runtime) {
 
-  // Note: runtime.config is untyped (Record<string, unknown>)
-
     runtime.print("Running status...");
   },
 });
@@ -327,7 +332,7 @@ Open it and add your implementation:
 
 <!-- golden: plugins/status-filled.ts -->
 ```ts
-const defineCommand = (def: any) => def;
+import { defineCommand } from "../../.my-tool/index.ts";
 
 export default defineCommand({
   name: "status",
@@ -343,7 +348,7 @@ export default defineCommand({
 });
 ```
 
-### 3. Run it
+### 4. Run it
 
 <!-- golden: plugins/status.txt cmd -->
 ```sh

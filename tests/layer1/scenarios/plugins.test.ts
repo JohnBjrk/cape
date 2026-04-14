@@ -3,11 +3,11 @@ import { join } from "node:path";
 import { TestEnv } from "../helpers/env.ts";
 import { snapshot } from "../helpers/golden.ts";
 
-// Scenario: plugin create, fill in, and run via the installed binary.
+// Scenario: project-local plugin flow.
 //
-// Plugin create is run from env.root (no .my-tool.toml nearby) so there is
-// only one location option — user-level ~/.config/my-tool/plugins/ — and the
-// prompt is skipped automatically (non-interactive safe).
+// A workspace directory holds a .my-tool.toml that declares a pluginDirs entry.
+// plugin create is called with --location ./plugins to select that directory
+// non-interactively (no TTY prompt needed).
 
 const isLinuxX64 = process.platform === "linux" && process.arch === "x64";
 const hasBun = !!Bun.which("bun");
@@ -16,10 +16,8 @@ const canBuild = !isLinuxX64 || hasBun;
 const env = await TestEnv.create();
 afterAll(() => env.cleanup());
 
-const normalizeHome = (s: string) => s.replaceAll(env.home, "~");
-
-// Absolute path to the user-level plugin directory (mirrors what my-tool uses)
-const pluginDir = join(env.home, ".config", "my-tool", "plugins", "status");
+// workspace/ lives alongside my-tool/ inside env.root
+const WORKSPACE = "workspace";
 
 test("cape init for plugins scenario", async () => {
   const r = await env.exec(["cape", "init", "--name", "my-tool", "--yes"]);
@@ -68,26 +66,39 @@ test.if(canBuild)("cape build and install", async () => {
   expect(install.exitCode).toBe(0);
 });
 
-test.if(canBuild)("plugin create scaffolds a plugin non-interactively", async () => {
-  // Run from env.root — no .my-tool.toml in any parent, so only the
-  // user-level directory is offered and auto-selected (no prompt).
+test.if(canBuild)("plugin create with --location creates a local plugin", async () => {
+  const tomlContent = `[my-tool]
+pluginDirs = ["./plugins"]
+`;
+  await env.write(`${WORKSPACE}/.my-tool.toml`, tomlContent);
+  await snapshot("plugins/my-tool.toml", tomlContent);
+
   const r = await env.exec(
-    ["my-tool", "plugin", "create", "--name", "status", "--description", "Show deployment status"],
-    { golden: "plugins/create", normalize: normalizeHome },
+    [
+      "my-tool",
+      "plugin",
+      "create",
+      "--name",
+      "status",
+      "--description",
+      "Show deployment status",
+      "--location",
+      "./plugins",
+    ],
+    { cwd: WORKSPACE, golden: "plugins/create" },
   );
   expect(r.exitCode).toBe(0);
   expect(r.stdout).toContain('Created plugin "status"');
 
-  // Snapshot the generated scaffold files
-  const scaffoldTs = await Bun.file(join(pluginDir, "status.ts")).text();
-  await snapshot("plugins/status.ts", scaffoldTs);
-
-  const scaffoldToml = await Bun.file(join(pluginDir, "status.plugin.toml")).text();
-  await snapshot("plugins/status.plugin.toml", scaffoldToml);
+  await env.snapshot(`${WORKSPACE}/plugins/status/status.ts`, "plugins/status.ts");
+  await env.snapshot(
+    `${WORKSPACE}/plugins/status/status.plugin.toml`,
+    "plugins/status.plugin.toml",
+  );
 });
 
 test.if(canBuild)("filled-in status plugin runs correctly", async () => {
-  const filledIn = `const defineCommand = (def: any) => def;
+  const filledIn = `import { defineCommand } from "../../.my-tool/index.ts";
 
 export default defineCommand({
   name: "status",
@@ -102,14 +113,18 @@ export default defineCommand({
   },
 });
 `;
-  await Bun.write(join(pluginDir, "status.ts"), filledIn);
+  await env.write(`${WORKSPACE}/plugins/status/status.ts`, filledIn);
   await snapshot("plugins/status-filled.ts", filledIn);
 
-  const r1 = await env.exec(["my-tool", "status"], { golden: "plugins/status" });
+  const r1 = await env.exec(["my-tool", "status"], {
+    cwd: WORKSPACE,
+    golden: "plugins/status",
+  });
   expect(r1.exitCode).toBe(0);
   expect(r1.stdout).toContain("Checking status for staging...");
 
   const r2 = await env.exec(["my-tool", "status", "--env", "production"], {
+    cwd: WORKSPACE,
     golden: "plugins/status-env",
   });
   expect(r2.exitCode).toBe(0);

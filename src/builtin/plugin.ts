@@ -10,7 +10,6 @@ import { xdgConfigHome, expandHome } from "../runtime/fs.ts";
 import { FRAMEWORK_VERSION } from "../loader/load.ts";
 import { CAPE_TYPES } from "../embedded.ts";
 import { text } from "../prompt/text.ts";
-import { select } from "../prompt/select.ts";
 import { NonTtyError } from "../prompt/types.ts";
 
 // ---------------------------------------------------------------------------
@@ -89,6 +88,20 @@ function createSubcommand(
       flags: {
         name: { type: "string", alias: "n", description: "Plugin name" },
         description: { type: "string", alias: "d", description: "Plugin description" },
+        location: {
+          type: "string",
+          alias: "l",
+          required: true,
+          description: "Directory to create the plugin in",
+          complete: {
+            type: "dynamic",
+            fetch: async () => {
+              const tomlDir = await findLocalConfigDir(cliName);
+              const options = await buildLocationOptions(cliName, tomlDir);
+              return options.map((o) => o.label);
+            },
+          },
+        },
       },
     },
     async run(args: ParsedArgs, runtime: Runtime): Promise<void> {
@@ -110,11 +123,20 @@ function createSubcommand(
         runtime,
       );
 
-      // Build location options from the local .{cliName}.toml only
+      // location is required with dynamic completion — the framework prompts
+      // interactively when not provided. The prompt returns full labels like
+      // "./plugins  (from [my-tool] config)"; strip the suffix to get the path.
+      const locationStr = (args.flags["location"] as string).replace(/\s{2}\(.*$/, "").trim();
       const tomlDir = await findLocalConfigDir(cliName);
-      const options = await buildLocationOptions(cliName, tomlDir);
-
-      const chosen = options.length === 1 ? options[0]! : await pickLocation(options, runtime);
+      const resolvedDir = expandHome(
+        isAbsolute(locationStr) ? locationStr : join(process.cwd(), locationStr),
+      );
+      const isInsideProject = tomlDir !== null && !relative(tomlDir, resolvedDir).startsWith("..");
+      const chosen: LocationOption = {
+        label: locationStr,
+        resolvedDir,
+        tomlDir: isInsideProject ? tomlDir : null,
+      };
 
       // Write files
       const pluginDir = join(chosen.resolvedDir, pluginName);
@@ -216,23 +238,6 @@ async function buildLocationOptions(
   });
 
   return options;
-}
-
-async function pickLocation(options: LocationOption[], runtime: Runtime): Promise<LocationOption> {
-  try {
-    const label = await select({
-      message: "Where should the plugin be created?",
-      choices: options.map((o) => o.label),
-      signal: runtime.signal,
-    });
-    return options.find((o) => o.label === label)!;
-  } catch (err) {
-    if (err instanceof NonTtyError) {
-      runtime.printError("Error: location required in non-TTY mode. Use --location.");
-      runtime.exit(1);
-    }
-    throw err;
-  }
 }
 
 // ---------------------------------------------------------------------------

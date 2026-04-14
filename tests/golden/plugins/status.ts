@@ -1,6 +1,4 @@
-// defineCommand is a no-op identity helper — no package install needed.
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const defineCommand = (def: any) => def;
+import { defineCommand } from "../../.my-tool/index.ts";
 
 export default defineCommand({
   name: "status",
@@ -11,8 +9,6 @@ export default defineCommand({
     },
   },
   async run(args, runtime) {
-
-  // Note: runtime.config is untyped (Record<string, unknown>)
 
     runtime.print("Running status...");
   },
