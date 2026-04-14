@@ -103,6 +103,7 @@ export const greetCommand = defineCommand({
 
 Open it and fill in the logic — for example:
 
+<!-- golden: quickstart/commands/greet-filled.ts -->
 ```ts
 import { defineCommand } from "../cli.config.ts";
 
@@ -124,8 +125,8 @@ export const greetCommand = defineCommand({
 
 Register it in `main.ts`:
 
+<!-- golden: quickstart/main-with-greet.ts -->
 ```ts
-// main.ts
 import { createCli } from "cape";
 import config from "./cli.config.ts";
 import { helloCommand } from "./commands/hello.ts";
@@ -138,12 +139,24 @@ await cli.run();
 
 Try it:
 
+<!-- golden: quickstart/greet-alice.txt cmd -->
 ```sh
 cape run -- greet --name Alice
-# Hello, Alice!
+```
 
+<!-- golden: quickstart/greet-alice.txt output -->
+```text
+Hello, Alice!
+```
+
+<!-- golden: quickstart/greet-alice-loud.txt cmd -->
+```sh
 cape run -- greet --name Alice --loud
-# HELLO, ALICE!
+```
+
+<!-- golden: quickstart/greet-alice-loud.txt output -->
+```text
+HELLO, ALICE!
 ```
 
 ---
