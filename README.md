@@ -30,10 +30,13 @@ cape --version
 
 ### 1. Create a new CLI
 
-<!-- golden: quickstart/init.txt -->
+<!-- golden: quickstart/init.txt cmd -->
 ```sh
-$ cape init --name my-tool --yes
+cape init --name my-tool --yes
+```
 
+<!-- golden: quickstart/init.txt output -->
+```text
 Scaffolding my-tool...
 ✓ Created my-tool/
 
@@ -48,9 +51,13 @@ This scaffolds a project with a `cli.config.ts`, a `main.ts` entry point, and a 
 
 ### 2. Run in dev mode
 
-<!-- golden: quickstart/run.txt -->
+<!-- golden: quickstart/run.txt cmd -->
 ```sh
-$ cape run -- hello --name World
+cape run -- hello --name World
+```
+
+<!-- golden: quickstart/run.txt output -->
+```text
 Hello, World!
 ```
 
@@ -58,9 +65,13 @@ Hello, World!
 
 ### 3. Add a command
 
-<!-- golden: quickstart/command-add.txt -->
+<!-- golden: quickstart/command-add.txt cmd -->
 ```sh
-$ cape command add --name greet --description "Greet someone"
+cape command add --name greet --description "Greet someone"
+```
+
+<!-- golden: quickstart/command-add.txt output -->
+```text
 ✓ Created commands/greet.ts
 
 Add it to your CLI in main.ts:
