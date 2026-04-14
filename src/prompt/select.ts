@@ -1,4 +1,6 @@
 import type { Key, SelectPromptOptions } from "./types.ts";
+import { choiceLabel, choiceValue } from "../parser/types.ts";
+import type { CompletionChoice } from "../parser/types.ts";
 import { style } from "./ansi.ts";
 import { runPromptLoop, printAnswer, handleCancelled } from "./runner.ts";
 
@@ -7,7 +9,7 @@ import { runPromptLoop, printAnswer, handleCancelled } from "./runner.ts";
 // ---------------------------------------------------------------------------
 
 export interface SelectState {
-  choices: string[];
+  choices: CompletionChoice[];
   index: number;
   done: boolean;
   cancelled: boolean;
@@ -39,9 +41,9 @@ export function selectReducer(state: SelectState, key: Key): SelectState {
       return { ...state, index: choices.length - 1 };
 
     case "char": {
-      // Jump to first item starting with the typed character
+      // Jump to first item whose label starts with the typed character
       const ch = key.char.toLowerCase();
-      const match = choices.findIndex((c) => c.toLowerCase().startsWith(ch));
+      const match = choices.findIndex((c) => choiceLabel(c).toLowerCase().startsWith(ch));
       if (match !== -1) return { ...state, index: match };
       return state;
     }
@@ -57,7 +59,7 @@ export function selectReducer(state: SelectState, key: Key): SelectState {
 
 export function renderSelect(state: SelectState, opts: SelectPromptOptions): string {
   if (state.done) {
-    return `${style.green("✓")} ${style.bold(opts.message)} ${style.dim(state.choices[state.index]!)}`;
+    return `${style.green("✓")} ${style.bold(opts.message)} ${style.dim(choiceLabel(state.choices[state.index]!))}`;
   }
   if (state.cancelled) {
     return `${style.red("✗")} ${style.bold(opts.message)}`;
@@ -65,9 +67,10 @@ export function renderSelect(state: SelectState, opts: SelectPromptOptions): str
 
   const lines = [
     `${style.cyan("?")} ${style.bold(opts.message)} ${style.dim("(↑↓ to move, Enter to select)")}`,
-    ...state.choices.map((choice, i) =>
-      i === state.index ? `  ${style.cyan("❯")} ${style.bold(choice)}` : `    ${choice}`,
-    ),
+    ...state.choices.map((choice, i) => {
+      const label = choiceLabel(choice);
+      return i === state.index ? `  ${style.cyan("❯")} ${style.bold(label)}` : `    ${label}`;
+    }),
   ];
   return lines.join("\n");
 }
@@ -77,7 +80,12 @@ export function renderSelect(state: SelectState, opts: SelectPromptOptions): str
 // ---------------------------------------------------------------------------
 
 export async function select(opts: SelectPromptOptions): Promise<string> {
-  const defaultIndex = opts.default ? Math.max(0, opts.choices.indexOf(opts.default)) : 0;
+  const defaultIndex = opts.default
+    ? Math.max(
+        0,
+        opts.choices.findIndex((c) => choiceValue(c) === opts.default),
+      )
+    : 0;
 
   let state: SelectState = {
     choices: opts.choices,
@@ -102,5 +110,5 @@ export async function select(opts: SelectPromptOptions): Promise<string> {
   }
 
   printAnswer(renderSelect(state, opts));
-  return state.choices[state.index]!;
+  return choiceValue(state.choices[state.index]!);
 }

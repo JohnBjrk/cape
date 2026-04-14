@@ -1,4 +1,5 @@
 import type { ArgSchema, CompletionCtx, CompletionSource } from "../parser/types.ts";
+import { choiceValue } from "../parser/types.ts";
 import type { CommandDef } from "../cli.ts";
 import { globalSchema, mergeSchemas } from "../parser/global-flags.ts";
 import { join } from "node:path";
@@ -161,7 +162,7 @@ async function fetchSource(
   cliName?: string,
 ): Promise<string[]> {
   if (!source) return [];
-  if (source.type === "static") return source.values;
+  if (source.type === "static") return source.values.map(choiceValue);
 
   // Dynamic source — check filesystem cache first
   const cacheFile = cliName ? completionCachePath(cliName, slotKey, ctx) : undefined;
@@ -172,7 +173,7 @@ async function fetchSource(
 
   let values: string[];
   try {
-    values = await withTimeout(source.fetch(ctx), source.timeoutMs ?? 5000);
+    values = (await withTimeout(source.fetch(ctx), source.timeoutMs ?? 5000)).map(choiceValue);
   } catch {
     return [];
   }

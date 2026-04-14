@@ -1,4 +1,6 @@
 import type { Key, AutocompletePromptOptions } from "./types.ts";
+import { choiceLabel, choiceValue } from "../parser/types.ts";
+import type { CompletionChoice } from "../parser/types.ts";
 import { style } from "./ansi.ts";
 import { makeKeyReader } from "./input.ts";
 import { cursor, clearAbove, countLines } from "./ansi.ts";
@@ -9,10 +11,16 @@ import { NonTtyError, PromptCancelledError } from "./types.ts";
 // ---------------------------------------------------------------------------
 
 export interface AutocompleteState {
-  query: string;
+  query: string; // text shown in the input field (label of selected item, or typed text)
   queryCursor: number;
-  items: string[]; // currently visible (filtered or fetched) items
+  items: CompletionChoice[]; // currently visible (filtered or fetched) items
   index: number; // highlighted item index, -1 = none
+  /**
+   * The value to return when done. Set when the user selects a choice (which
+   * may have a different value from its label). Undefined means fall back to
+   * query as both label and value (plain-string / free-text path).
+   */
+  selectedValue: string | undefined;
   loading: boolean;
   done: boolean;
   cancelled: boolean;
@@ -20,7 +28,7 @@ export interface AutocompleteState {
   defaultValue?: string;
 }
 
-type AutocompleteAction = { type: "key"; key: Key } | { type: "items"; items: string[] };
+type AutocompleteAction = { type: "key"; key: Key } | { type: "items"; items: CompletionChoice[] };
 
 export function autocompleteReducer(
   state: AutocompleteState,
@@ -48,17 +56,32 @@ export function autocompleteReducer(
     case "enter": {
       // Explicit selection > first item > typed query > default (when no items match)
       const selected = state.index >= 0 ? state.items[state.index] : state.items[0];
-      const value = selected ?? (state.query || state.defaultValue) ?? "";
-      return { ...state, query: value, done: true };
+      if (selected !== undefined) {
+        const label = choiceLabel(selected);
+        const value = choiceValue(selected);
+        return { ...state, query: label, selectedValue: value, done: true };
+      }
+      // No item — use already-selected value from Tab, or the typed query, or default
+      const fallback = state.selectedValue ?? (state.query || (state.defaultValue ?? ""));
+      return { ...state, query: fallback, selectedValue: fallback, done: true };
     }
 
     case "tab": {
-      // Tab: accept highlighted item or first item
-      const value =
-        state.index >= 0
-          ? (state.items[state.index] ?? state.query)
-          : (state.items[0] ?? state.query);
-      return { ...state, query: value, queryCursor: value.length, index: -1 };
+      // Tab: accept highlighted item or first item — fill in label, record value
+      const choice =
+        state.index >= 0 ? (state.items[state.index] ?? state.items[0]) : state.items[0];
+      if (choice !== undefined) {
+        const label = choiceLabel(choice);
+        const value = choiceValue(choice);
+        return {
+          ...state,
+          query: label,
+          queryCursor: label.length,
+          selectedValue: value,
+          index: -1,
+        };
+      }
+      return state;
     }
 
     case "up":
@@ -100,21 +123,35 @@ function insertChar(state: AutocompleteState, char: string): AutocompleteState {
   const { query, queryCursor: pos } = state;
   const newQuery = query.slice(0, pos) + char + query.slice(pos);
   // Clear selection while items refresh so the stale highlight doesn't linger
-  return { ...state, query: newQuery, queryCursor: pos + 1, index: -1, loading: true };
+  return {
+    ...state,
+    query: newQuery,
+    queryCursor: pos + 1,
+    selectedValue: undefined,
+    index: -1,
+    loading: true,
+  };
 }
 
 function deleteBack(state: AutocompleteState): AutocompleteState {
   const { query, queryCursor: pos } = state;
   if (pos === 0) return state;
   const newQuery = query.slice(0, pos - 1) + query.slice(pos);
-  return { ...state, query: newQuery, queryCursor: pos - 1, index: -1, loading: true };
+  return {
+    ...state,
+    query: newQuery,
+    queryCursor: pos - 1,
+    selectedValue: undefined,
+    index: -1,
+    loading: true,
+  };
 }
 
 function deleteForward(state: AutocompleteState): AutocompleteState {
   const { query, queryCursor: pos } = state;
   if (pos === query.length) return state;
   const newQuery = query.slice(0, pos) + query.slice(pos + 1);
-  return { ...state, query: newQuery, index: -1, loading: true };
+  return { ...state, query: newQuery, selectedValue: undefined, index: -1, loading: true };
 }
 
 // ---------------------------------------------------------------------------
@@ -151,8 +188,9 @@ export function renderAutocomplete(
 
   const visible = state.items.slice(0, MAX_VISIBLE);
   const itemLines = visible.map((item, i) => {
+    const label = choiceLabel(item);
     const isHighlighted = i === state.index;
-    return isHighlighted ? `  ${style.cyan("❯")} ${style.bold(item)}` : `    ${item}`;
+    return isHighlighted ? `  ${style.cyan("❯")} ${style.bold(label)}` : `    ${label}`;
   });
 
   if (visible.length === 0 && !state.loading) {
@@ -175,19 +213,19 @@ export async function autocomplete(opts: AutocompletePromptOptions): Promise<str
 
   const isStatic = Array.isArray(opts.choices);
 
-  /** Float the default value to index 0 so it's always visible and pre-selected. */
-  function floatDefault(items: string[]): string[] {
+  /** Float the default value (matched by value) to index 0 so it's always visible and pre-selected. */
+  function floatDefault(items: CompletionChoice[]): CompletionChoice[] {
     if (!opts.default) return items;
-    const idx = items.indexOf(opts.default);
+    const idx = items.findIndex((c) => choiceValue(c) === opts.default);
     if (idx <= 0) return items;
     return [items[idx]!, ...items.slice(0, idx), ...items.slice(idx + 1)];
   }
 
-  function filterStatic(query: string): string[] {
-    const choices = opts.choices as string[];
+  function filterStatic(query: string): CompletionChoice[] {
+    const choices = opts.choices as CompletionChoice[];
     if (!query) return floatDefault(choices);
     const q = query.toLowerCase();
-    return choices.filter((c) => c.toLowerCase().includes(q));
+    return choices.filter((c) => choiceLabel(c).toLowerCase().includes(q));
   }
 
   const initialItems = isStatic ? filterStatic("") : [];
@@ -197,6 +235,7 @@ export async function autocomplete(opts: AutocompletePromptOptions): Promise<str
     queryCursor: 0,
     items: initialItems,
     index: initialItems.length > 0 ? 0 : -1,
+    selectedValue: undefined,
     loading: !isStatic,
     done: false,
     cancelled: false,
@@ -287,7 +326,7 @@ export async function autocomplete(opts: AutocompletePromptOptions): Promise<str
 
     fetchTimer = setTimeout(async () => {
       try {
-        const fn = opts.choices as (q: string, s: AbortSignal) => Promise<string[]>;
+        const fn = opts.choices as (q: string, s: AbortSignal) => Promise<CompletionChoice[]>;
         let items = await fn(query, signal);
         if (!signal.aborted) {
           // Float default to top when no query is active, same as static behaviour
@@ -341,5 +380,5 @@ export async function autocomplete(opts: AutocompletePromptOptions): Promise<str
   }
 
   process.stdout.write(renderAutocomplete(state, opts) + "\n");
-  return state.query;
+  return state.selectedValue ?? state.query;
 }

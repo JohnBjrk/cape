@@ -3,7 +3,7 @@ import { mkdir } from "node:fs/promises";
 import { homedir } from "node:os";
 import type { CommandDef, SubcommandDef } from "../cli.ts";
 import type { Runtime } from "../runtime/types.ts";
-import type { ParsedArgs, ConfigSchema, ConfigField } from "../parser/types.ts";
+import type { ParsedArgs, ConfigSchema, ConfigField, CompletionChoice } from "../parser/types.ts";
 import { discoverPlugins } from "../loader/discover.ts";
 import { readFrameworkConfig, findLocalConfigDir } from "../runtime/config.ts";
 import { xdgConfigHome, expandHome } from "../runtime/fs.ts";
@@ -95,10 +95,10 @@ function createSubcommand(
           description: "Directory to create the plugin in",
           complete: {
             type: "dynamic",
-            fetch: async () => {
+            fetch: async (): Promise<CompletionChoice[]> => {
               const tomlDir = await findLocalConfigDir(cliName);
               const options = await buildLocationOptions(cliName, tomlDir);
-              return options.map((o) => o.label);
+              return options.map((o) => ({ label: o.label, value: o.resolvedDir }));
             },
           },
         },
@@ -124,9 +124,10 @@ function createSubcommand(
       );
 
       // location is required with dynamic completion — the framework prompts
-      // interactively when not provided. The prompt returns full labels like
-      // "./plugins  (from [my-tool] config)"; strip the suffix to get the path.
-      const locationStr = (args.flags["location"] as string).replace(/\s{2}\(.*$/, "").trim();
+      // interactively when not provided. When selected from the prompt the value
+      // is the resolved absolute path; when passed on the command line it may be
+      // relative and needs expanding.
+      const locationStr = args.flags["location"] as string;
       const tomlDir = await findLocalConfigDir(cliName);
       const resolvedDir = expandHome(
         isAbsolute(locationStr) ? locationStr : join(process.cwd(), locationStr),

@@ -1,11 +1,19 @@
 import { describe, it, expect } from "bun:test";
 import { textReducer, type TextState } from "./text.ts";
-import { selectReducer, type SelectState } from "./select.ts";
+import { selectReducer, renderSelect, type SelectState } from "./select.ts";
 import { confirmReducer, type ConfirmState } from "./confirm.ts";
-import { multiSelectReducer, type MultiSelectState } from "./multi-select.ts";
-import { autocompleteReducer, type AutocompleteState } from "./autocomplete.ts";
-import type { Key } from "./types.ts";
+import { multiSelectReducer, renderMultiSelect, type MultiSelectState } from "./multi-select.ts";
+import { autocompleteReducer, renderAutocomplete, type AutocompleteState } from "./autocomplete.ts";
+import type {
+  Key,
+  SelectPromptOptions,
+  MultiSelectPromptOptions,
+  AutocompletePromptOptions,
+} from "./types.ts";
+import type { CompletionChoice } from "../parser/types.ts";
 import { fromSchema, promptedToArgv } from "./from-schema.ts";
+
+const stripAnsi = (s: string) => s.replace(/\x1b\[[0-9;]*[a-zA-Z]/g, "");
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -356,6 +364,7 @@ describe("autocompleteReducer", () => {
     queryCursor: 0,
     items: ["Alice", "Bob", "Charlie"],
     index: -1,
+    selectedValue: undefined,
     loading: false,
     done: false,
     cancelled: false,
@@ -523,5 +532,329 @@ describe("resolve — prompt boolean skipRequired mode", () => {
     const schema = { flags: { confirm: { type: "boolean" as const, required: true } } };
     const result = resolve(tokenize([]), schema, { skipRequired: true });
     expect(result.flags["confirm"]).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// renderSelect
+// ---------------------------------------------------------------------------
+
+describe("renderSelect", () => {
+  const opts: SelectPromptOptions = { message: "Pick one", choices: ["apple", "banana", "cherry"] };
+  const base: SelectState = { choices: opts.choices, index: 0, done: false, cancelled: false };
+
+  it("shows question mark, message, hint, and all choice labels", () => {
+    const out = stripAnsi(renderSelect(base, opts));
+    expect(out).toContain("? Pick one");
+    expect(out).toContain("apple");
+    expect(out).toContain("banana");
+    expect(out).toContain("cherry");
+  });
+
+  it("marks the current index with ❯ and leaves others unmarked", () => {
+    const out = stripAnsi(renderSelect({ ...base, index: 1 }, opts));
+    const lines = out.split("\n");
+    expect(lines.some((l) => l.includes("❯") && l.includes("banana"))).toBe(true);
+    expect(lines.some((l) => !l.includes("❯") && l.includes("apple"))).toBe(true);
+  });
+
+  it("done state shows ✓ and the selected label", () => {
+    const out = stripAnsi(renderSelect({ ...base, index: 2, done: true }, opts));
+    expect(out).toContain("✓");
+    expect(out).toContain("cherry");
+    expect(out).not.toContain("?");
+  });
+
+  it("cancelled state shows ✗", () => {
+    const out = stripAnsi(renderSelect({ ...base, cancelled: true }, opts));
+    expect(out).toContain("✗");
+    expect(out).not.toContain("?");
+  });
+
+  it("displays label (not value) for label/value choices while idle", () => {
+    const choices: CompletionChoice[] = [
+      { label: "Production", value: "prod" },
+      { label: "Staging", value: "stage" },
+    ];
+    const opts2: SelectPromptOptions = { message: "Env", choices };
+    const out = stripAnsi(
+      renderSelect({ choices, index: 0, done: false, cancelled: false }, opts2),
+    );
+    expect(out).toContain("Production");
+    expect(out).toContain("Staging");
+    expect(out).not.toContain("prod");
+    expect(out).not.toContain("stage");
+  });
+
+  it("done state shows label (not value) for label/value choices", () => {
+    const choices: CompletionChoice[] = [
+      { label: "Production", value: "prod" },
+      { label: "Staging", value: "stage" },
+    ];
+    const opts2: SelectPromptOptions = { message: "Env", choices };
+    const out = stripAnsi(renderSelect({ choices, index: 0, done: true, cancelled: false }, opts2));
+    expect(out).toContain("Production");
+    expect(out).not.toContain("prod");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// selectReducer — label/value choices
+// ---------------------------------------------------------------------------
+
+describe("selectReducer — label/value choices", () => {
+  const choices: CompletionChoice[] = [
+    { label: "Production", value: "prod" },
+    { label: "Staging", value: "stage" },
+    { label: "Development", value: "dev" },
+  ];
+  const base: SelectState = { choices, index: 0, done: false, cancelled: false };
+
+  it("char jump matches on label, not value", () => {
+    // 's' should match 'Staging' (label), not 'stage' (value)
+    expect(selectReducer(base, char("s")).index).toBe(1);
+  });
+
+  it("char jump case-insensitive on label", () => {
+    expect(selectReducer(base, char("d")).index).toBe(2); // Development
+  });
+
+  it("enter sets done at current index for label/value choices", () => {
+    const s = selectReducer({ ...base, index: 1 }, key("enter"));
+    expect(s.done).toBe(true);
+    expect(s.index).toBe(1);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// renderMultiSelect
+// ---------------------------------------------------------------------------
+
+describe("renderMultiSelect", () => {
+  const opts: MultiSelectPromptOptions = {
+    message: "Pick flavours",
+    choices: ["vanilla", "chocolate", "strawberry"],
+  };
+  const base: MultiSelectState = {
+    choices: opts.choices,
+    index: 0,
+    checked: new Set(),
+    done: false,
+    cancelled: false,
+  };
+
+  it("shows all choice labels", () => {
+    const out = stripAnsi(renderMultiSelect(base, opts));
+    expect(out).toContain("vanilla");
+    expect(out).toContain("chocolate");
+    expect(out).toContain("strawberry");
+  });
+
+  it("shows checked marker for checked items", () => {
+    const out = stripAnsi(renderMultiSelect({ ...base, checked: new Set([1]) }, opts));
+    const lines = out.split("\n");
+    expect(lines.some((l) => l.includes("◉") && l.includes("chocolate"))).toBe(true);
+    expect(lines.some((l) => l.includes("○") && l.includes("vanilla"))).toBe(true);
+  });
+
+  it("done state shows ✓ and selected labels joined by comma", () => {
+    const out = stripAnsi(
+      renderMultiSelect({ ...base, checked: new Set([0, 2]), done: true }, opts),
+    );
+    expect(out).toContain("✓");
+    expect(out).toContain("vanilla");
+    expect(out).toContain("strawberry");
+    expect(out).not.toContain("chocolate");
+  });
+
+  it("done with nothing checked shows (none)", () => {
+    const out = stripAnsi(renderMultiSelect({ ...base, done: true }, opts));
+    expect(out).toContain("(none)");
+  });
+
+  it("cancelled state shows ✗", () => {
+    const out = stripAnsi(renderMultiSelect({ ...base, cancelled: true }, opts));
+    expect(out).toContain("✗");
+  });
+
+  it("displays labels (not values) for label/value choices", () => {
+    const choices: CompletionChoice[] = [
+      { label: "Vanilla Bean", value: "vanilla" },
+      { label: "Dark Chocolate", value: "choc" },
+    ];
+    const opts2: MultiSelectPromptOptions = { message: "Pick", choices };
+    const state: MultiSelectState = {
+      choices,
+      index: 0,
+      checked: new Set([0, 1]),
+      done: true,
+      cancelled: false,
+    };
+    const out = stripAnsi(renderMultiSelect(state, opts2));
+    expect(out).toContain("Vanilla Bean");
+    expect(out).toContain("Dark Chocolate");
+    expect(out).not.toContain('"vanilla"');
+    expect(out).not.toContain('"choc"');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// renderAutocomplete
+// ---------------------------------------------------------------------------
+
+describe("renderAutocomplete", () => {
+  const opts: AutocompletePromptOptions = {
+    message: "Search",
+    choices: ["Alice", "Bob", "Charlie"],
+  };
+  const base: AutocompleteState = {
+    query: "",
+    queryCursor: 0,
+    items: ["Alice", "Bob", "Charlie"],
+    index: 0,
+    selectedValue: undefined,
+    loading: false,
+    done: false,
+    cancelled: false,
+  };
+
+  it("shows question mark, message, hint, and items", () => {
+    const out = stripAnsi(renderAutocomplete(base, opts));
+    expect(out).toContain("? Search");
+    expect(out).toContain("Alice");
+    expect(out).toContain("Bob");
+  });
+
+  it("highlights the item at index with ❯", () => {
+    const out = stripAnsi(renderAutocomplete({ ...base, index: 1 }, opts));
+    const lines = out.split("\n");
+    expect(lines.some((l) => l.includes("❯") && l.includes("Bob"))).toBe(true);
+    expect(lines.some((l) => !l.includes("❯") && l.includes("Alice"))).toBe(true);
+  });
+
+  it("shows (no matches) when items is empty and not loading", () => {
+    const out = stripAnsi(renderAutocomplete({ ...base, items: [], index: -1 }, opts));
+    expect(out).toContain("(no matches)");
+  });
+
+  it("shows spinner frame instead of ? when loading", () => {
+    const out = stripAnsi(renderAutocomplete({ ...base, loading: true }, opts, 0));
+    expect(out).not.toContain("?");
+  });
+
+  it("done state shows ✓ and the query (selected label)", () => {
+    const out = stripAnsi(renderAutocomplete({ ...base, query: "Alice", done: true }, opts));
+    expect(out).toContain("✓");
+    expect(out).toContain("Alice");
+    expect(out).not.toContain("?");
+  });
+
+  it("cancelled state shows ✗", () => {
+    const out = stripAnsi(renderAutocomplete({ ...base, cancelled: true }, opts));
+    expect(out).toContain("✗");
+  });
+
+  it("displays item labels (not values) for label/value choices", () => {
+    const choices: CompletionChoice[] = [
+      { label: "Production", value: "prod" },
+      { label: "Staging", value: "stage" },
+    ];
+    const opts2: AutocompletePromptOptions = { message: "Env", choices };
+    const state: AutocompleteState = { ...base, items: choices };
+    const out = stripAnsi(renderAutocomplete(state, opts2));
+    expect(out).toContain("Production");
+    expect(out).toContain("Staging");
+    expect(out).not.toContain("prod");
+    expect(out).not.toContain("stage");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// autocompleteReducer — label/value choices
+// ---------------------------------------------------------------------------
+
+describe("autocompleteReducer — label/value choices", () => {
+  const items: CompletionChoice[] = [
+    { label: "Production", value: "prod" },
+    { label: "Staging", value: "stage" },
+  ];
+  const base: AutocompleteState = {
+    query: "",
+    queryCursor: 0,
+    items,
+    index: 0,
+    selectedValue: undefined,
+    loading: false,
+    done: false,
+    cancelled: false,
+  };
+
+  it("tab sets query to label and selectedValue to value", () => {
+    const s = autocompleteReducer({ ...base, index: 0 }, { type: "key", key: key("tab") });
+    expect(s.query).toBe("Production");
+    expect(s.selectedValue).toBe("prod");
+    expect(s.index).toBe(-1);
+  });
+
+  it("tab on second item sets correct label and value", () => {
+    const s = autocompleteReducer({ ...base, index: 1 }, { type: "key", key: key("tab") });
+    expect(s.query).toBe("Staging");
+    expect(s.selectedValue).toBe("stage");
+  });
+
+  it("enter sets query to label, selectedValue to value, done to true", () => {
+    const s = autocompleteReducer({ ...base, index: 1 }, { type: "key", key: key("enter") });
+    expect(s.done).toBe(true);
+    expect(s.query).toBe("Staging");
+    expect(s.selectedValue).toBe("stage");
+  });
+
+  it("enter with index=-1 picks first item", () => {
+    const s = autocompleteReducer({ ...base, index: -1 }, { type: "key", key: key("enter") });
+    expect(s.done).toBe(true);
+    expect(s.query).toBe("Production");
+    expect(s.selectedValue).toBe("prod");
+  });
+
+  it("typing a char after tab clears selectedValue", () => {
+    const afterTab: AutocompleteState = {
+      ...base,
+      query: "Production",
+      queryCursor: 10,
+      selectedValue: "prod",
+    };
+    const s = autocompleteReducer(afterTab, { type: "key", key: char("x") });
+    expect(s.selectedValue).toBeUndefined();
+  });
+
+  it("backspace after tab clears selectedValue", () => {
+    const afterTab: AutocompleteState = {
+      ...base,
+      query: "Production",
+      queryCursor: 10,
+      selectedValue: "prod",
+    };
+    const s = autocompleteReducer(afterTab, { type: "key", key: key("backspace") });
+    expect(s.selectedValue).toBeUndefined();
+  });
+
+  it("enter with no items falls back to selectedValue set by previous tab", () => {
+    const afterTab: AutocompleteState = {
+      ...base,
+      items: [],
+      index: -1,
+      query: "Production",
+      selectedValue: "prod",
+    };
+    const s = autocompleteReducer(afterTab, { type: "key", key: key("enter") });
+    expect(s.done).toBe(true);
+    expect(s.selectedValue).toBe("prod");
+  });
+
+  it("items action stores label/value choices", () => {
+    const s = autocompleteReducer({ ...base, items: [], loading: true }, { type: "items", items });
+    expect(s.items).toEqual(items);
+    expect(s.loading).toBe(false);
+    expect(s.index).toBe(0);
   });
 });

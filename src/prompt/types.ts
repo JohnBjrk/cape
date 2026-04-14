@@ -1,3 +1,6 @@
+import type { CompletionChoice } from "../parser/types.ts";
+export type { CompletionChoice };
+
 // ---------------------------------------------------------------------------
 // Key events
 // ---------------------------------------------------------------------------
@@ -52,8 +55,8 @@ export interface TextPromptOptions {
 
 export interface SelectPromptOptions {
   message: string;
-  choices: string[];
-  /** Initially highlighted choice. */
+  choices: CompletionChoice[];
+  /** Initially highlighted choice (matched by value). */
   default?: string;
   signal?: AbortSignal;
 }
@@ -67,8 +70,8 @@ export interface ConfirmPromptOptions {
 
 export interface MultiSelectPromptOptions {
   message: string;
-  choices: string[];
-  /** Pre-checked choices. */
+  choices: CompletionChoice[];
+  /** Pre-checked choices (matched by value). */
   defaults?: string[];
   signal?: AbortSignal;
 }
@@ -79,8 +82,14 @@ export interface AutocompletePromptOptions {
    * Static array of choices filtered locally, or an async function called on
    * each query change with debouncing. The function receives the current query
    * and an AbortSignal (aborted when a new query supersedes this one).
+   *
+   * Each choice may be a plain string (label = value) or `{ label, value }`.
+   * The prompt displays labels and returns the value of the selected choice.
    */
-  choices: string[] | ((query: string, signal: AbortSignal) => Promise<string[]>);
+  choices:
+    | CompletionChoice[]
+    | ((query: string, signal: AbortSignal) => Promise<CompletionChoice[]>);
+  /** Default value (matched by value, not label). */
   default?: string;
   /** Debounce delay for dynamic fetchers (ms). Default: 150. */
   debounceMs?: number;

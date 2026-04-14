@@ -49,11 +49,27 @@ export interface CompletionCtx {
   flags: Record<string, unknown>;
 }
 
+/**
+ * A single completion choice — either a plain string (label = value) or an
+ * object with separate display label and submitted value.
+ */
+export type CompletionChoice = string | { label: string; value: string };
+
+/** Returns the text to display for a choice. */
+export function choiceLabel(c: CompletionChoice): string {
+  return typeof c === "string" ? c : c.label;
+}
+
+/** Returns the value produced when a choice is selected. */
+export function choiceValue(c: CompletionChoice): string {
+  return typeof c === "string" ? c : c.value;
+}
+
 export type CompletionSource =
-  | { type: "static"; values: string[] }
+  | { type: "static"; values: CompletionChoice[] }
   | {
       type: "dynamic";
-      fetch: (ctx: CompletionCtx) => Promise<string[]>;
+      fetch: (ctx: CompletionCtx) => Promise<CompletionChoice[]>;
       /** How long to cache results (ms). Omit to disable caching. */
       cacheMs?: number;
       /** Abort and return [] if fetch takes longer than this (ms). Default: 5000. */

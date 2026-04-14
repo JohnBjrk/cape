@@ -1,4 +1,6 @@
 import type { Key, MultiSelectPromptOptions } from "./types.ts";
+import { choiceLabel, choiceValue } from "../parser/types.ts";
+import type { CompletionChoice } from "../parser/types.ts";
 import { style } from "./ansi.ts";
 import { runPromptLoop, printAnswer, handleCancelled } from "./runner.ts";
 
@@ -7,7 +9,7 @@ import { runPromptLoop, printAnswer, handleCancelled } from "./runner.ts";
 // ---------------------------------------------------------------------------
 
 export interface MultiSelectState {
-  choices: string[];
+  choices: CompletionChoice[];
   index: number;
   checked: Set<number>;
   done: boolean;
@@ -69,7 +71,7 @@ function toggleAll(state: MultiSelectState): MultiSelectState {
 
 export function renderMultiSelect(state: MultiSelectState, opts: MultiSelectPromptOptions): string {
   if (state.done) {
-    const selected = state.choices.filter((_, i) => state.checked.has(i));
+    const selected = state.choices.filter((_, i) => state.checked.has(i)).map(choiceLabel);
     return `${style.green("✓")} ${style.bold(opts.message)} ${style.dim(selected.join(", ") || "(none)")}`;
   }
   if (state.cancelled) {
@@ -79,10 +81,11 @@ export function renderMultiSelect(state: MultiSelectState, opts: MultiSelectProm
   const lines = [
     `${style.cyan("?")} ${style.bold(opts.message)} ${style.dim("(↑↓ move, Space toggle, a all, Enter confirm)")}`,
     ...state.choices.map((choice, i) => {
+      const label = choiceLabel(choice);
       const checked = state.checked.has(i) ? style.green("◉") : "○";
-      const label = i === state.index ? style.bold(style.cyan(choice)) : choice;
+      const styledLabel = i === state.index ? style.bold(style.cyan(label)) : label;
       const pointer = i === state.index ? style.cyan("❯") : " ";
-      return `  ${pointer} ${checked} ${label}`;
+      return `  ${pointer} ${checked} ${styledLabel}`;
     }),
   ];
   return lines.join("\n");
@@ -94,7 +97,9 @@ export function renderMultiSelect(state: MultiSelectState, opts: MultiSelectProm
 
 export async function multiSelect(opts: MultiSelectPromptOptions): Promise<string[]> {
   const defaultChecked = new Set(
-    (opts.defaults ?? []).map((d) => opts.choices.indexOf(d)).filter((i) => i !== -1),
+    (opts.defaults ?? [])
+      .map((d) => opts.choices.findIndex((c) => choiceValue(c) === d))
+      .filter((i) => i !== -1),
   );
 
   let state: MultiSelectState = {
@@ -121,5 +126,5 @@ export async function multiSelect(opts: MultiSelectPromptOptions): Promise<strin
   }
 
   printAnswer(renderMultiSelect(state, opts));
-  return state.choices.filter((_, i) => state.checked.has(i));
+  return state.choices.filter((_, i) => state.checked.has(i)).map(choiceValue);
 }
