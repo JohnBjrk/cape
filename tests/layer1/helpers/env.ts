@@ -126,7 +126,7 @@ function findCapeBin(): string {
   if (require("node:fs").existsSync(installedBin)) return installedBin;
 
   throw new Error(
-    "cape binary not found. Run `bun run cape:build` or `bun run cape:install` first.",
+    "cape binary not found. Run `bun run cape:bootstrap:build` or `bun run cape:install` first.",
   );
 }
 

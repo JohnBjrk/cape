@@ -7,7 +7,7 @@ import { defineScenario } from "../helpers/runner.ts";
 // Runs fine locally on macOS (ARM64) where neither issue applies.
 //
 // Prerequisites:
-//   bun run cape:build:all
+//   bun run cape:bootstrap:build:all
 
 export default defineScenario({
   name: "build",

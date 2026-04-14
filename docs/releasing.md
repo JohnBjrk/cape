@@ -24,7 +24,7 @@ version: "0.1.2",
 The four generated files are gitignored. Placeholder versions (empty exports with correct types) are committed so the project compiles, but they must be populated before building:
 
 ```sh
-bun run cape:bootstrap:prebuild   # if cape binary not yet available
+bun run cape:bootstrap:build   # if cape binary not yet available — prebuild + build in one step
 # or, once cape is built:
 cape prebuild
 ```
@@ -89,8 +89,9 @@ The version string in `install.sh` and in each binary comes from `cli.config.ts`
 To test locally before publishing, install the current-platform binary:
 
 ```sh
-bun run cape:install   # copies dist/cape to ~/.cape/bin/cape
-cape --version         # should match cli.config.ts
+# From cape-cli/:
+cape install       # copies dist/cape to ~/.cape/bin/cape
+cape --version     # should match cli.config.ts
 ```
 
 ---
@@ -121,8 +122,11 @@ cape publish --draft
 ## Full checklist
 
 ```sh
+# All commands run from cape-cli/ unless noted.
+cd cape-cli
+
 # 1. Bump version
-#    Edit cape-cli/cli.config.ts → version: "x.y.z"
+#    Edit cli.config.ts → version: "x.y.z"
 
 # 2. Prebuild
 cape prebuild
@@ -131,7 +135,7 @@ cape prebuild
 cape build --all-platforms
 
 # 4. Smoke-test locally
-bun run cape:install
+cape install
 cape --version
 
 # 5. Publish

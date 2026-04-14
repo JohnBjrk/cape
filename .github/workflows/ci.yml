@@ -25,7 +25,7 @@ jobs:
         run: bun run format:check
 
       - name: Build cape binary
-        run: bun run cape:build
+        run: bun run cape:bootstrap:build
 
       - name: Typecheck & unit tests
         run: bun run test
@@ -53,7 +53,7 @@ jobs:
         run: echo "$HOME/.cape/bin" >> $GITHUB_PATH
 
       - name: Build all platform binaries
-        run: bun run cape:build:all
+        run: bun run cape:bootstrap:build:all
 
       - name: Run container tests
         run: bun run test:container --ci

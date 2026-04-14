@@ -1,7 +1,7 @@
 import { defineScenario } from "../helpers/runner.ts";
 
 // Prerequisites:
-//   bun run cape:build:all
+//   bun run cape:bootstrap:build:all
 // This produces cape-cli/dist/cape-linux-arm64.gz, cape-cli/dist/cape-linux-x64.gz, cape-cli/dist/install.sh
 
 export default defineScenario({
