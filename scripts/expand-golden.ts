@@ -85,7 +85,7 @@ async function expandFile(path: string): Promise<void> {
   let i = 0;
 
   while (i < lines.length) {
-    const line = lines[i];
+    const line = lines[i] ?? "";
     const m = MARKER_RE.exec(line);
     if (!m) {
       out.push(line);
@@ -93,15 +93,16 @@ async function expandFile(path: string): Promise<void> {
       continue;
     }
 
-    const [, indent, name, fromStr, toStr] = m;
-    const from = fromStr ? parseInt(fromStr, 10) : undefined;
-    const to = toStr ? parseInt(toStr, 10) : undefined;
+    const indent = m[1]!;
+    const name = m[2]!;
+    const from = m[3] ? parseInt(m[3], 10) : undefined;
+    const to = m[4] ? parseInt(m[4], 10) : undefined;
 
     // Skip any immediately-following fenced block (idempotency: strip old expansion)
     let j = i + 1;
-    if (j < lines.length && lines[j].trimStart().startsWith("```")) {
+    if (j < lines.length && (lines[j] ?? "").trimStart().startsWith("```")) {
       j++; // skip opening fence line
-      while (j < lines.length && !lines[j].trimStart().startsWith("```")) j++;
+      while (j < lines.length && !(lines[j] ?? "").trimStart().startsWith("```")) j++;
       j++; // skip closing fence line
     }
 
