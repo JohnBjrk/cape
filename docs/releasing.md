@@ -86,14 +86,6 @@ cape-cli/dist/
 
 The version string in `install.sh` and in each binary comes from `cli.config.ts` at build time — it cannot be changed after building.
 
-To test locally before publishing, install the current-platform binary:
-
-```sh
-# From cape-cli/:
-cape install       # copies dist/cape to ~/.cape/bin/cape
-cape --version     # should match cli.config.ts
-```
-
 ---
 
 ## 4. Publish
@@ -134,10 +126,6 @@ cape prebuild
 # 3. Build all platforms
 cape build --all-platforms
 
-# 4. Smoke-test locally
-cape install
-cape --version
-
-# 5. Publish
+# 4. Publish
 cape publish
 ```

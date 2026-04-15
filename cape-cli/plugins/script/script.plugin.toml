@@ -1,0 +1,5 @@
+name = "script"
+description = "Run a package.json script"
+command = "./script.ts"
+enabled = true
+frameworkVersion = "1.0.0"

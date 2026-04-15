@@ -3,7 +3,12 @@ import { textReducer, type TextState } from "./text.ts";
 import { selectReducer, renderSelect, type SelectState } from "./select.ts";
 import { confirmReducer, type ConfirmState } from "./confirm.ts";
 import { multiSelectReducer, renderMultiSelect, type MultiSelectState } from "./multi-select.ts";
-import { autocompleteReducer, renderAutocomplete, type AutocompleteState } from "./autocomplete.ts";
+import {
+  autocompleteReducer,
+  renderAutocomplete,
+  filterByLabel,
+  type AutocompleteState,
+} from "./autocomplete.ts";
 import type {
   Key,
   SelectPromptOptions,
@@ -351,6 +356,46 @@ describe("multiSelectReducer", () => {
 
   it("escape cancels", () => {
     expect(multiSelectReducer(base, key("escape")).cancelled).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// filterByLabel
+// ---------------------------------------------------------------------------
+
+describe("filterByLabel", () => {
+  const choices: CompletionChoice[] = ["apple", "apricot", "banana", "blueberry"];
+
+  it("returns all choices when query is empty string", () => {
+    expect(filterByLabel(choices, "")).toEqual(choices);
+  });
+
+  it("filters by substring match", () => {
+    expect(filterByLabel(choices, "ap")).toEqual(["apple", "apricot"]);
+  });
+
+  it("is case-insensitive", () => {
+    expect(filterByLabel(choices, "BL")).toEqual(["blueberry"]);
+  });
+
+  it("returns empty array when nothing matches", () => {
+    expect(filterByLabel(choices, "xyz")).toEqual([]);
+  });
+
+  it("filters label/value choices by label, not value", () => {
+    const lv: CompletionChoice[] = [
+      { label: "Production", value: "prod" },
+      { label: "Staging", value: "stage" },
+      { label: "Development", value: "dev" },
+    ];
+    expect(filterByLabel(lv, "pro")).toEqual([{ label: "Production", value: "prod" }]);
+    expect(filterByLabel(lv, "stage")).toEqual([]); // "stage" is a value, not in any label
+  });
+
+  it("mixed string and label/value choices filtered by label", () => {
+    const mixed: CompletionChoice[] = ["plain", { label: "Fancy", value: "fancy-value" }];
+    expect(filterByLabel(mixed, "fan")).toEqual([{ label: "Fancy", value: "fancy-value" }]);
+    expect(filterByLabel(mixed, "pl")).toEqual(["plain"]);
   });
 });
 

@@ -206,6 +206,15 @@ export function renderAutocomplete(
 // Runner
 // ---------------------------------------------------------------------------
 
+/**
+ * Filters a list of choices by the given query string, matching against each
+ * choice's label (case-insensitive, substring). Exported for testing.
+ */
+export function filterByLabel(choices: CompletionChoice[], query: string): CompletionChoice[] {
+  const q = query.toLowerCase();
+  return choices.filter((c) => choiceLabel(c).toLowerCase().includes(q));
+}
+
 /** The autocomplete runner is custom (not using runPromptLoop) because it
  * interleaves key events with async fetch results. */
 export async function autocomplete(opts: AutocompletePromptOptions): Promise<string> {
@@ -224,8 +233,7 @@ export async function autocomplete(opts: AutocompletePromptOptions): Promise<str
   function filterStatic(query: string): CompletionChoice[] {
     const choices = opts.choices as CompletionChoice[];
     if (!query) return floatDefault(choices);
-    const q = query.toLowerCase();
-    return choices.filter((c) => choiceLabel(c).toLowerCase().includes(q));
+    return filterByLabel(choices, query);
   }
 
   const initialItems = isStatic ? filterStatic("") : [];
@@ -329,8 +337,14 @@ export async function autocomplete(opts: AutocompletePromptOptions): Promise<str
         const fn = opts.choices as (q: string, s: AbortSignal) => Promise<CompletionChoice[]>;
         let items = await fn(query, signal);
         if (!signal.aborted) {
-          // Float default to top when no query is active, same as static behaviour
-          if (!query) items = floatDefault(items);
+          // Apply the same client-side label filter used for static choices.
+          // This ensures filtering works even when the fetcher returns unfiltered results.
+          if (query) {
+            items = filterByLabel(items, query);
+          } else {
+            // Float default to top when no query is active, same as static behaviour
+            items = floatDefault(items);
+          }
           state = autocompleteReducer(state, { type: "items", items });
           redraw();
         }
